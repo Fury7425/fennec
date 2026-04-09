@@ -178,15 +178,11 @@ export function bootstrapCommand(program: Command, config: SurferConfig) {
 
         // ── 9. Apply ungoogled-chromium patches ─────────────────────────────
         const ugPatchDone = step('Applying ungoogled-chromium patches');
-        const ugPatchArgs = await resolveUngoogledPatchArgs(
+        await applyUngoogledPatches(
           join(ugDir, 'utils', 'patches.py'),
           SRC_DIR,
           join(ugDir, 'patches'),
         );
-        await run('python3', [
-          join(ugDir, 'utils', 'patches.py'),
-          ...ugPatchArgs,
-        ], { stream: true });
         ugPatchDone('ungoogled-chromium patches applied');
       } else {
         log.warn('--skip-ungoogled: skipping de-googling pipeline.');
@@ -220,22 +216,43 @@ export function bootstrapCommand(program: Command, config: SurferConfig) {
 
 function VERBOSE() { return !!process.env['FENNEC_VERBOSE']; }
 
-async function resolveUngoogledPatchArgs(
+async function applyUngoogledPatches(
   patchesPy: string,
   srcDir: string,
   patchDir: string,
-): Promise<string[]> {
-  const help = await execa('python3', [patchesPy, 'apply', '--help'], {
-    reject: false,
-    stdio: 'pipe',
-  });
-  const output = `${help.stdout ?? ''}\n${help.stderr ?? ''}`;
+): Promise<void> {
+  const attempts: Array<{ args: string[]; label: string }> = [
+    { args: ['apply', srcDir, patchDir], label: 'positional patch dir' },
+    { args: ['apply', srcDir, '--patch-dir', patchDir], label: '--patch-dir flag' },
+  ];
 
-  if (output.includes('--patch-dir')) {
-    return ['apply', srcDir, '--patch-dir', patchDir];
+  let lastOutput = '';
+
+  for (const attempt of attempts) {
+    const result = await execa('python3', [patchesPy, ...attempt.args], {
+      reject: false,
+      stdio: 'pipe',
+    });
+    const output = `${result.stdout ?? ''}${result.stderr ?? ''}`;
+
+    if (result.exitCode === 0) {
+      if (VERBOSE() && output) {
+        log.raw(output);
+      }
+      return;
+    }
+
+    lastOutput = [
+      `Attempt: ${attempt.label}`,
+      output.trim(),
+      `exit code: ${result.exitCode ?? 'unknown'}`,
+    ].filter(Boolean).join('\n');
   }
 
-  return ['apply', srcDir, patchDir];
+  log.fatal(
+    `Command failed: python3 ${patchesPy} apply ${srcDir} ${patchDir}`,
+    lastOutput,
+  );
 }
 
 async function applyPatchSeries(root: string, srcDir: string): Promise<void> {
