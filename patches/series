@@ -64,6 +64,8 @@ vendor/fennec/branding/fennec-icon-resources.patch
 # ─── SECTION 4: Fennec networking / transparency ─────────────────────────────
 vendor/fennec/networking/consent-first-no-boot-requests.patch
 vendor/fennec/networking/request-journal-interceptor.patch
+vendor/fennec/networking/journal-filter-engine.patch
+vendor/fennec/networking/journal-mojo-handler.patch
 vendor/fennec/networking/block-qjz9zk-domain.patch
 vendor/fennec/networking/proxy-web-store-requests.patch
 vendor/fennec/networking/disable-prefetch-by-default.patch
@@ -75,6 +77,7 @@ vendor/fennec/privacy/https-only-mode-by-default.patch
 vendor/fennec/privacy/no-builtin-password-manager.patch
 vendor/fennec/privacy/no-sync-by-default.patch
 vendor/fennec/privacy/ublock-origin-component-extension.patch
+vendor/fennec/privacy/ublock-component-loader.patch
 
 # ─── SECTION 6: Fennec UI ────────────────────────────────────────────────────
 vendor/fennec/ui/disable-horizontal-tabstrip.patch
@@ -87,3 +90,5 @@ vendor/fennec/ui/fennec-webui-pages.patch
 vendor/fennec/ui/css-variable-theme-bridge.patch
 vendor/fennec/ui/mods-loader-webui.patch
 vendor/fennec/ui/fennec-setup-page.patch
+vendor/fennec/ui/setup-page-c-handler.patch
+vendor/fennec/ui/ublock-toolbar-indicator.patch

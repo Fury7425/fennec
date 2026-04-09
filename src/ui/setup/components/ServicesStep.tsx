@@ -2,94 +2,225 @@ import React from 'react';
 import type { SetupState } from '../types';
 
 interface Props {
-  state: SetupState;
+  services: SetupState['services'];
   onChange: (patch: Partial<SetupState['services']>) => void;
   onNext: () => void;
 }
 
-export default function ServicesStep({ state, onChange, onNext }: Props) {
+// Each service that Fennec may contact over the network.
+const SERVICE_DEFS = [
+  {
+    key:         'enableUpdates' as const,
+    title:       'Automatic updates',
+    description: 'Checks for new Fennec releases and notifies you when one is available.',
+    server:      'updates.fennec.computer',
+    what:        'Sends your current Fennec version and platform. No user ID.',
+    sourceRepo:  'https://github.com/fennec-browser/fennec-services',
+  },
+  {
+    key:         'enableFilterRefresh' as const,
+    title:       'uBlock filter list auto-refresh',
+    description: 'Refreshes the EasyList, EasyPrivacy, and uBO filter lists on a weekly schedule.',
+    server:      'cdn.jsdelivr.net, easylist.to (CDNs — no login required)',
+    what:        'Fetches public filter list files. No cookies, no user data sent.',
+    sourceRepo:  'https://github.com/gorhill/uBlock',
+  },
+  {
+    key:         'enableModsRegistry' as const,
+    title:       'Mods registry',
+    description: 'Allows browsing and installing community Mods from the Fennec Mods directory.',
+    server:      'mods.fennec.computer',
+    what:        'Fetches a public JSON index of available Mods. No user data sent.',
+    sourceRepo:  'https://github.com/fennec-browser/fennec-services',
+  },
+  {
+    key:         'enableCwsProxy' as const,
+    title:       'Anonymised extension proxy',
+    description: 'Routes Chrome Web Store extension installs through the Fennec proxy to remove Google identifiers.',
+    server:      'cws-proxy.fennec.computer (fennec-services)',
+    what:        'Proxies the extension download. Strips your IP from Google\'s logs. The proxy sees only the extension ID.',
+    sourceRepo:  'https://github.com/fennec-browser/fennec-services',
+  },
+] as const;
+
+function Toggle({
+  checked,
+  onChange,
+}: {
+  checked: boolean;
+  onChange: () => void;
+}): React.ReactElement {
   return (
-    <div>
-      <h2 style={{ marginTop: 0, color: 'var(--fnc-text-primary)' }}>Optional services</h2>
-      <p style={{ color: 'var(--fnc-text-secondary)', marginBottom: 24 }}>
-        Fennec is fully functional without any cloud services. These are opt-in only.
+    <button
+      role="switch"
+      aria-checked={checked}
+      onClick={onChange}
+      style={{
+        width:        '44px',
+        height:       '24px',
+        borderRadius: '12px',
+        border:       'none',
+        cursor:       'pointer',
+        background:   checked ? 'var(--fnc-accent)' : 'var(--fnc-border)',
+        position:     'relative',
+        flexShrink:   0,
+        transition:   'background 150ms ease',
+      }}
+    >
+      <span
+        style={{
+          position:   'absolute',
+          top:        '2px',
+          left:       checked ? '22px' : '2px',
+          width:      '20px',
+          height:     '20px',
+          borderRadius: '50%',
+          background: '#fff',
+          boxShadow:  '0 1px 3px rgba(0,0,0,0.2)',
+          transition: 'left 150ms ease',
+          display:    'block',
+        }}
+      />
+    </button>
+  );
+}
+
+export function ServicesStep({ services, onChange, onNext }: Props): React.ReactElement {
+  const bodyStyle: React.CSSProperties = {
+    padding:       'var(--fnc-space-8)',
+    display:       'flex',
+    flexDirection: 'column',
+  };
+
+  const cardStyle: React.CSSProperties = {
+    background:   'var(--fnc-surface-sunken)',
+    borderRadius: 'var(--fnc-radius-lg)',
+    marginBottom: 'var(--fnc-space-3)',
+    overflow:     'hidden',
+  };
+
+  const cardHeaderStyle: React.CSSProperties = {
+    display:        'flex',
+    alignItems:     'flex-start',
+    justifyContent: 'space-between',
+    gap:            'var(--fnc-space-4)',
+    padding:        'var(--fnc-space-4)',
+  };
+
+  const cardBodyStyle: React.CSSProperties = {
+    padding:    '0 var(--fnc-space-4) var(--fnc-space-3)',
+    borderTop:  '1px solid var(--fnc-border-subtle)',
+    fontSize:   'var(--fnc-text-sm)',
+    color:      'var(--fnc-text-secondary)',
+    lineHeight: 'var(--fnc-leading-relaxed)',
+  };
+
+  return (
+    <div style={bodyStyle}>
+      <h2 style={{
+        marginTop:    0,
+        marginBottom: 'var(--fnc-space-2)',
+        fontSize:     'var(--fnc-text-2xl)',
+        fontWeight:   700,
+        color:        'var(--fnc-text-primary)',
+      }}>
+        Optional services
+      </h2>
+      <p style={{
+        fontSize:     'var(--fnc-text-sm)',
+        color:        'var(--fnc-text-secondary)',
+        marginTop:    0,
+        marginBottom: 'var(--fnc-space-6)',
+        lineHeight:   'var(--fnc-leading-relaxed)',
+      }}>
+        Fennec works fully offline. Each service below makes network calls —
+        opt in only to what you want. You can change these later in Settings.
       </p>
 
-      <div style={{ padding: '20px', background: 'var(--fnc-surface-1)', borderRadius: 12, marginBottom: 16 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-          <div>
-            <div style={{ fontWeight: 600, color: 'var(--fnc-text-primary)' }}>Sync</div>
-            <div style={{ fontSize: '0.875rem', color: 'var(--fnc-text-secondary)' }}>
-              Sync bookmarks and settings with your own server
+      {SERVICE_DEFS.map(svc => {
+        const enabled = services[svc.key];
+        return (
+          <div key={svc.key} style={cardStyle}>
+            <div style={cardHeaderStyle}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{
+                  fontWeight:   600,
+                  fontSize:     'var(--fnc-text-base)',
+                  color:        'var(--fnc-text-primary)',
+                  marginBottom: 'var(--fnc-space-1)',
+                }}>
+                  {svc.title}
+                </div>
+                <div style={{
+                  fontSize:   'var(--fnc-text-sm)',
+                  color:      'var(--fnc-text-secondary)',
+                  lineHeight: 'var(--fnc-leading-normal)',
+                }}>
+                  {svc.description}
+                </div>
+              </div>
+              <Toggle
+                checked={enabled}
+                onChange={() => onChange({ [svc.key]: !enabled })}
+              />
             </div>
-          </div>
-          <button
-            role="switch"
-            aria-checked={state.services.enableSync}
-            onClick={() => onChange({ enableSync: !state.services.enableSync })}
-            style={{
-              width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer',
-              background: state.services.enableSync ? 'var(--fnc-accent)' : 'var(--fnc-surface-2)',
-              position: 'relative', flexShrink: 0,
-            }}
-          >
-            <span style={{
-              position: 'absolute', top: 2,
-              left: state.services.enableSync ? 22 : 2,
-              width: 20, height: 20, borderRadius: '50%', background: '#fff',
-              transition: 'left 0.2s',
-            }} />
-          </button>
-        </div>
-        {state.services.enableSync && (
-          <input
-            type="url"
-            placeholder="https://your-sync-server.com"
-            value={state.services.syncServerUrl}
-            onChange={e => onChange({ syncServerUrl: e.target.value })}
-            style={{
-              width: '100%', padding: '10px 14px', borderRadius: 8, boxSizing: 'border-box',
-              border: '1px solid var(--fnc-border)', background: 'var(--fnc-surface-0)',
-              color: 'var(--fnc-text-primary)', fontSize: '0.9rem',
-            }}
-          />
-        )}
-      </div>
 
-      <div style={{ padding: '20px', background: 'var(--fnc-surface-1)', borderRadius: 12, marginBottom: 24 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <div style={{ fontWeight: 600, color: 'var(--fnc-text-primary)' }}>Automatic updates</div>
-            <div style={{ fontSize: '0.875rem', color: 'var(--fnc-text-secondary)' }}>
-              Check for updates from updates.fennec.computer
+            {/* Expanded detail row */}
+            <div style={cardBodyStyle}>
+              <div style={{ marginTop: 'var(--fnc-space-2)', display: 'flex', flexDirection: 'column', gap: 'var(--fnc-space-1)' }}>
+                <div>
+                  <span style={{ fontWeight: 600 }}>Server: </span>
+                  <code style={{
+                    fontFamily:  'var(--fnc-font-mono)',
+                    fontSize:    '11px',
+                    background:  'var(--fnc-surface-overlay)',
+                    padding:     '1px 5px',
+                    borderRadius: '4px',
+                  }}>
+                    {svc.server}
+                  </code>
+                </div>
+                <div>
+                  <span style={{ fontWeight: 600 }}>Data sent: </span>
+                  {svc.what}
+                </div>
+                <div>
+                  <span style={{ fontWeight: 600 }}>Open source: </span>
+                  <a
+                    href={svc.sourceRepo}
+                    style={{
+                      color:          'var(--fnc-accent)',
+                      textDecoration: 'none',
+                      fontSize:       '11px',
+                      fontFamily:     'var(--fnc-font-mono)',
+                    }}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {svc.sourceRepo.replace('https://', '')}
+                  </a>
+                </div>
+              </div>
             </div>
           </div>
-          <button
-            role="switch"
-            aria-checked={state.services.enableUpdates}
-            onClick={() => onChange({ enableUpdates: !state.services.enableUpdates })}
-            style={{
-              width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer',
-              background: state.services.enableUpdates ? 'var(--fnc-accent)' : 'var(--fnc-surface-2)',
-              position: 'relative', flexShrink: 0,
-            }}
-          >
-            <span style={{
-              position: 'absolute', top: 2,
-              left: state.services.enableUpdates ? 22 : 2,
-              width: 20, height: 20, borderRadius: '50%', background: '#fff',
-              transition: 'left 0.2s',
-            }} />
-          </button>
-        </div>
-      </div>
+        );
+      })}
 
       <button
         onClick={onNext}
         style={{
-          padding: '12px 32px', background: 'var(--fnc-accent)',
-          color: '#fff', border: 'none', borderRadius: 8, fontSize: '1rem',
-          fontWeight: 600, cursor: 'pointer',
+          marginTop:    'var(--fnc-space-4)',
+          padding:      `var(--fnc-space-3) var(--fnc-space-8)`,
+          background:   'var(--fnc-accent)',
+          color:        'var(--fnc-accent-on)',
+          border:       'none',
+          borderRadius: 'var(--fnc-radius-full)',
+          fontSize:     'var(--fnc-text-md)',
+          fontWeight:   600,
+          fontFamily:   'var(--fnc-font-sans)',
+          cursor:       'pointer',
+          transition:   'background 120ms ease',
+          alignSelf:    'stretch',
         }}
       >
         Continue

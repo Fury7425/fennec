@@ -136,7 +136,7 @@ export function WelcomeStep({ onNext }: WelcomeStepProps): React.ReactElement {
         margin:     '0 0 var(--fnc-space-8)',
         lineHeight: 'var(--fnc-leading-normal)',
       }}>
-        A browser that respects you.
+        Small ears. Big awareness.
       </p>
 
       <div style={{
