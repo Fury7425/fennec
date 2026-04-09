@@ -32,6 +32,7 @@ import { existsSync }        from 'node:fs';
 import { mkdir, rm, rename } from 'node:fs/promises';
 import { resolve, join }     from 'node:path';
 import chalk                 from 'chalk';
+import { execa }             from 'execa';
 import { log, step }         from '../utils/logger.js';
 import { run, download, verifySha256, requireBinaries } from '../utils/shell.js';
 import type { SurferConfig } from '../utils/config.js';
@@ -177,11 +178,14 @@ export function bootstrapCommand(program: Command, config: SurferConfig) {
 
         // ── 9. Apply ungoogled-chromium patches ─────────────────────────────
         const ugPatchDone = step('Applying ungoogled-chromium patches');
-        await run('python3', [
+        const ugPatchArgs = await resolveUngoogledPatchArgs(
           join(ugDir, 'utils', 'patches.py'),
-          'apply',
           SRC_DIR,
           join(ugDir, 'patches'),
+        );
+        await run('python3', [
+          join(ugDir, 'utils', 'patches.py'),
+          ...ugPatchArgs,
         ], { stream: true });
         ugPatchDone('ungoogled-chromium patches applied');
       } else {
@@ -215,6 +219,24 @@ export function bootstrapCommand(program: Command, config: SurferConfig) {
 // ── helpers ──────────────────────────────────────────────────────────────────
 
 function VERBOSE() { return !!process.env['FENNEC_VERBOSE']; }
+
+async function resolveUngoogledPatchArgs(
+  patchesPy: string,
+  srcDir: string,
+  patchDir: string,
+): Promise<string[]> {
+  const help = await execa('python3', [patchesPy, 'apply', '--help'], {
+    reject: false,
+    stdio: 'pipe',
+  });
+  const output = `${help.stdout ?? ''}\n${help.stderr ?? ''}`;
+
+  if (output.includes('--patch-dir')) {
+    return ['apply', srcDir, '--patch-dir', patchDir];
+  }
+
+  return ['apply', srcDir, patchDir];
+}
 
 async function applyPatchSeries(root: string, srcDir: string): Promise<void> {
   const { readFile } = await import('node:fs/promises');
