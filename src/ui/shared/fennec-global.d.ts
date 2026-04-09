@@ -42,5 +42,42 @@ interface Window {
       /** Unsubscribe by id. */
       unsubscribe: (id: number) => void;
     };
+
+    newtab?: {
+      /** Returns privacy stats as JSON: { blockersToday, requestsToday }. */
+      getPrivacyStats: () => string;
+      /** Focuses the browser omnibox so the user can type a URL/search. */
+      focusOmnibox: () => void;
+    };
+
+    sidebar?: {
+      /** Returns all open tabs as a JSON array of SidebarTab objects. */
+      getTabs: () => string;
+      /** Returns all workspaces as a JSON array of Workspace objects. */
+      getWorkspaces: () => string;
+      /** Activates (switches to) the tab with the given id. */
+      activateTab: (tabId: number) => void;
+      /** Closes the tab with the given id. */
+      closeTab: (tabId: number) => void;
+      /** Opens a new tab, optionally in a specific workspace. */
+      newTab: (workspaceId?: number) => void;
+      /** Pins or unpins a tab. */
+      setPinned: (tabId: number, pinned: boolean) => void;
+      /** Moves a tab to a different workspace. */
+      moveTab: (tabId: number, toWorkspaceId: number) => void;
+      /** Subscribes to tab/workspace change events; returns subscription id. */
+      subscribe: (callback: (eventJson: string) => void) => number;
+      /** Unsubscribes by id. */
+      unsubscribe: (id: number) => void;
+    };
+
+    settings?: {
+      /** Returns all current settings as a JSON SettingsSnapshot. */
+      getAll: () => string;
+      /** Updates a single setting by key. */
+      set: (key: string, value: string | boolean | number) => void;
+      /** Returns the current Fennec version string, e.g. "1.0.0". */
+      getVersion: () => string;
+    };
   };
 }
