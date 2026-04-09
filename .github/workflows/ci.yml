@@ -44,7 +44,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: '20' }
-      - run: npx ajv-cli validate -s src/mods/mod.schema.json -d src/mods/mod.schema.json
+      - run: npx ajv-cli compile -s src/mods/mod.schema.json
 
   validate-surfer-config:
     runs-on: ubuntu-latest
@@ -52,7 +52,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: '20' }
-      - run: cd fennec-surfer && npm ci && npm run build && node -e "import('./dist/index.js')"
+      - run: cd fennec-surfer && npm ci && npm run build && node dist/index.js --help
 
   verify-patches-clean:
     runs-on: ubuntu-latest
