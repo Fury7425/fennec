@@ -98,10 +98,36 @@ def main() -> int:
         '--skip-core', action='store_true',
         help='Skip existence check for core/ patches (populated at bootstrap time)'
     )
+    parser.add_argument(
+        '--status', action='store_true',
+        help='Print a status table of all patches (present/missing) and exit 0'
+    )
     args = parser.parse_args()
 
     series_file = Path(args.series_file)
     patches_dir = Path(args.patches_dir)
+
+    # -- Status mode: print presence table and exit 0 --------------------------
+    if args.status:
+        if not series_file.exists():
+            print(f'ERROR: series file not found: {series_file}', file=sys.stderr)
+            return 2
+        series = load_series(series_file)
+        print(f'Patch status ({len(series)} entries in {series_file}):')
+        print()
+        col = max((len(p) for p in series), default=20) + 2
+        print(f'  {"PATCH":<{col}}  STATUS')
+        print(f'  {"-" * col}  ------')
+        for patch_rel in series:
+            if args.skip_core and is_core_patch(patch_rel):
+                status = 'SKIP (core)'
+            elif (patches_dir / patch_rel).exists():
+                status = 'PRESENT'
+            else:
+                status = 'MISSING'
+            print(f'  {patch_rel:<{col}}  {status}')
+        print()
+        return 0
 
     # -- Infrastructure checks -------------------------------------------------
     if not series_file.exists():

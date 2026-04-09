@@ -224,7 +224,7 @@ async function applyPatchSeries(root: string, srcDir: string): Promise<void> {
   try {
     seriesContent = await readFile(seriesPath, 'utf8');
   } catch {
-    log.fatal('patches/series not found. Run from the Fennec repo root.');
+    return log.fatal('patches/series not found. Run from the Fennec repo root.');
   }
 
   const patches = seriesContent

@@ -52,7 +52,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: '20' }
-      - run: cd fennec-surfer && npm ci && node -e "import('./dist/index.js')"
+      - run: cd fennec-surfer && npm ci && npm run build && node -e "import('./dist/index.js')"
 
   verify-patches-clean:
     runs-on: ubuntu-latest
