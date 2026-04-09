@@ -161,13 +161,23 @@ function buildGnArgs(
     .map(([k, v]) => {
       if (typeof v === 'boolean') return `${k} = ${v}`;
       if (typeof v === 'number')  return `${k} = ${v}`;
-      // String: already quoted by the caller when needed
-      return `${k} = ${v}`;
+      return `${k} = ${normalizeGnString(v)}`;
     })
     .join('\n');
 }
 
 function quote(s: string): string { return `"${s}"`; }
+
+function normalizeGnString(value: string): string {
+  const trimmed = value.trim();
+  if (
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
+    return trimmed;
+  }
+  return quote(value);
+}
 
 function binaryName(platform: TargetPlatform): string {
   switch (platform) {
