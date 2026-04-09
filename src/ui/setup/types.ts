@@ -4,11 +4,6 @@
 //   Screen 3 — Done (summary, "Start browsing")
 export type SetupStep = 'welcome' | 'services' | 'done';
 
-export interface ServiceToggle {
-  // Whether the user has opted in.
-  enabled: boolean;
-}
-
 export interface SetupState {
   step: SetupStep;
 
@@ -18,36 +13,27 @@ export interface SetupState {
   services: {
     /** Automatic browser updates via updates.fennec.computer */
     enableUpdates: boolean;
-
     /** uBlock Origin filter list auto-refresh via CDN URLs */
     enableFilterRefresh: boolean;
-
     /** Mods registry browse/install via mods.fennec.computer */
     enableModsRegistry: boolean;
-
     /** Anonymised Chrome Web Store proxy via fennec-services */
     enableCwsProxy: boolean;
   };
-}
 
-// Bridge to C++ SetupPageHandler via Mojo.
-// Injected as window.__fennec.setup by the WebUI data source.
-declare global {
-  interface Window {
-    __fennec?: {
-      setup?: {
-        /** Commits the user's choices and releases the consent guard. */
-        commit: (state: SetupState) => void;
-        /** Returns the current Fennec version string, e.g. "1.0.0". */
-        getVersion: () => string;
-      };
-      journal?: {
-        getEntries:  (n: number) => string;
-        exportJson:  (days: number) => void;
-        clear:       () => void;
-        subscribe:   (cb: (json: string) => void) => number;
-        unsubscribe: (id: number) => void;
-      };
-    };
-  }
+  // ── Privacy (defaults applied without a UI step in the 3-screen flow) ──
+  // Kept here so PrivacyStep.tsx remains type-safe if re-added later.
+  privacy?: {
+    blockThirdPartyCookies: boolean;
+    httpsOnly:              boolean;
+    webrtcProtection:       boolean;
+    noPasswordManager:      boolean;
+  };
+
+  // ── Appearance (not shown in current 3-screen flow) ──────────────────────
+  // Kept here so AppearanceStep.tsx remains type-safe if re-added later.
+  appearance?: {
+    theme:       'system' | 'light' | 'dark';
+    accentColor: string;
+  };
 }

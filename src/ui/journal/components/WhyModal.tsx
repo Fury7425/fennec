@@ -10,7 +10,7 @@ interface WhyModalProps {
 const CLASS_EXPLANATIONS: Record<ResourceClass, string> = {
   'first-party':
     'This request was made by the website you are currently visiting, ' +
-    'to its own server. It is part of the page's normal operation.',
+    "to its own server. It is part of the page's normal operation.",
   'third-party':
     'This request was made to a different domain from the page you are ' +
     'visiting. The destination has not been identified as a tracker or ad ' +
@@ -38,7 +38,7 @@ const CLASS_EXPLANATIONS: Record<ResourceClass, string> = {
   'blocked':
     'This request was blocked before it could be sent. It may have been ' +
     'stopped by the consent guard (before you completed setup), by uBlock ' +
-    'Origin, or by Fennec's network policy.',
+    "Origin, or by Fennec's network policy.",
 };
 
 // Resource type explanations.
@@ -156,10 +156,7 @@ export function WhyModal({ entry, onClose }: WhyModalProps): React.ReactElement 
     fontSize:     'var(--fnc-text-sm)',
     textAlign:    'right',
     wordBreak:    'break-all',
-    fontFamily:   cls === 'url' ? 'var(--fnc-font-mono)' : undefined,
-  } as React.CSSProperties;
-
-  const cls = 'text';
+  };
 
   return (
     <div style={backdropStyle} onClick={handleBackdrop}>

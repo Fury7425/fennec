@@ -1,9 +1,13 @@
-import React from 'react';
-import type { SetupState } from '../types';
+interface PrivacyState {
+  blockThirdPartyCookies: boolean;
+  httpsOnly:              boolean;
+  webrtcProtection:       boolean;
+  noPasswordManager:      boolean;
+}
 
 interface Props {
-  state: SetupState;
-  onChange: (patch: Partial<SetupState['privacy']>) => void;
+  state: { privacy?: PrivacyState };
+  onChange: (patch: Partial<PrivacyState>) => void;
   onNext: () => void;
 }
 
@@ -52,25 +56,25 @@ export default function PrivacyStep({ state, onChange, onNext }: Props) {
       <ToggleRow
         label="Block third-party cookies"
         description="Prevents advertisers and trackers from following you across sites."
-        checked={state.privacy.blockThirdPartyCookies}
+        checked={state.privacy?.blockThirdPartyCookies ?? true}
         onChange={v => onChange({ blockThirdPartyCookies: v })}
       />
       <ToggleRow
         label="HTTPS-only mode"
         description="Automatically upgrades connections to HTTPS where available."
-        checked={state.privacy.httpsOnly}
+        checked={state.privacy?.httpsOnly ?? true}
         onChange={v => onChange({ httpsOnly: v })}
       />
       <ToggleRow
         label="WebRTC IP protection"
         description="Prevents websites from detecting your local IP address via WebRTC."
-        checked={state.privacy.webrtcProtection}
+        checked={state.privacy?.webrtcProtection ?? true}
         onChange={v => onChange({ webrtcProtection: v })}
       />
       <ToggleRow
         label="Disable built-in password manager"
         description="Use a dedicated password manager instead of the browser's built-in one."
-        checked={state.privacy.noPasswordManager}
+        checked={state.privacy?.noPasswordManager ?? true}
         onChange={v => onChange({ noPasswordManager: v })}
       />
 

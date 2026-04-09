@@ -14,8 +14,8 @@
     "allowImportingTsExtensions": true,
     "noEmit":           true,
     "paths": {
-      "@tokens/*": ["src/ui/tokens/*"],
-      "@shared/*": ["src/ui/shared/*"]
+      "@tokens/*": ["./src/ui/tokens/*"],
+      "@shared/*": ["./src/ui/shared/*"]
     }
   },
   "include": ["src/ui/**/*.ts", "src/ui/**/*.tsx", "vite.config.ts"]
