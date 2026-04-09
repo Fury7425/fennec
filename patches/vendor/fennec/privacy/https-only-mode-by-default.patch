@@ -1,0 +1,59 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# PILLAR: Privacy
+# JOURNAL: no
+
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Fennec Authors <patches@fennec.computer>
+Date: Mon, 08 Apr 2024 00:00:00 +0000
+Subject: [PATCH] privacy: enable HTTPS-only mode by default
+
+Sets the HTTPS-Only mode pref to enabled on first launch. When enabled,
+Chromium's HttpsOnlyModeNavigationThrottle intercepts HTTP navigations
+and either upgrades them to HTTPS or shows an interstitial warning if
+the HTTPS version is unavailable.
+
+Chromium default: disabled
+Fennec default:   enabled (HTTPS_ONLY_MODE_ENABLED = 1)
+
+Users can disable globally or add per-site exceptions via:
+  Settings → Privacy → HTTPS-only mode
+
+This patch sets the pref default. The HTTPS-Only mode infrastructure
+is already present in Chromium; this is a one-line default flip.
+
+PILLAR: Privacy
+JOURNAL: none — this patch prevents unencrypted navigations.
+         The HTTPS upgrade itself generates no extra network calls.
+
+---
+ chrome/browser/ssl/https_only_mode_policy_handler.cc | 6 ++++--
+ chrome/browser/profiles/profile_impl.cc              | 5 +++++
+ 2 files changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/chrome/browser/profiles/profile_impl.cc b/chrome/browser/profiles/profile_impl.cc
+index 7a8b9c0d..3e4f5d6a 100644
+--- a/chrome/browser/profiles/profile_impl.cc
++++ b/chrome/browser/profiles/profile_impl.cc
+@@ -430,6 +430,11 @@ void ProfileImpl::RegisterProfilePrefs(
++  // Fennec: enable HTTPS-Only mode by default.
++  // HttpsOnlyModeService reads kHttpsOnlyModeEnabled.
++  // Values: 0 = disabled, 1 = enabled, 2 = enabled+strict (no fallback)
++  registry->RegisterIntegerPref(
++      prefs::kHttpsOnlyModeEnabled,
++      1,  // HTTPS_ONLY_MODE_ENABLED — warn, allow HTTP bypass
++      user_prefs::PrefRegistrySyncable::SYNCABLE_PREF);
+ }
+
+diff --git a/chrome/browser/ssl/https_only_mode_policy_handler.cc b/chrome/browser/ssl/https_only_mode_policy_handler.cc
+index 5e6f7a8b..9c0d1e2f 100644
+--- a/chrome/browser/ssl/https_only_mode_policy_handler.cc
++++ b/chrome/browser/ssl/https_only_mode_policy_handler.cc
+@@ -38,8 +38,8 @@ bool HttpsOnlyModePolicyHandler::CheckPolicySettings(
+   // Chromium default is disabled; Fennec flips the pref default in
+-  // ProfileImpl but leaves this handler logic unchanged.
++  // ProfileImpl. This handler reads whatever the user has set; the
++  // Fennec default (enabled) propagates naturally from the pref default.
+   return true;
+ }
+--
+2.44.0

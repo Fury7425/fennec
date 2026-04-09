@@ -1,0 +1,43 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# PILLAR: Transparency
+# JOURNAL: no
+
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Fennec Authors <patches@fennec.computer>
+Date: Mon, 08 Apr 2024 00:00:00 +0000
+Subject: [PATCH] branding: replace Chromium icons with Fennec icons
+
+Replaces the Chromium product icon assets in the following locations:
+  chrome/app/theme/chromium/           (Linux + Windows)
+  chrome/app/theme/chromium/mac/       (macOS .icns)
+  chrome/browser/resources/images/     (toolbar / favicon fallbacks)
+
+Icon design specification: see branding/ICON_SPEC.md
+
+TODO: This patch is a stub. Populate with real icon assets once the
+      final icon exports are provided by the designer. Place the icon
+      files in branding/icons/ and update the GN copy() rules below.
+
+Pixel-perfect requirements per ICON_SPEC.md:
+  - Geometric fennec fox head, front-on, flat color
+  - Ears: amber (#d4783c), tall isoceles, dominant at 32×32
+  - Eyes: light circles, no pupils ("aware but calm")
+  - Head: deep warm gray on rounded-square canvas
+  - No gradients, no illustrations, no wordmark
+
+PILLAR: Branding
+JOURNAL: none
+
+---
+ chrome/app/theme/chromium/product_logo_16.png  | 0
+ chrome/app/theme/chromium/product_logo_32.png  | 0
+ chrome/app/theme/chromium/product_logo_48.png  | 0
+ chrome/app/theme/chromium/product_logo_128.png | 0
+ chrome/app/theme/chromium/product_logo_256.png | 0
+ 5 files changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/chrome/app/theme/chromium/product_logo_256.png b/chrome/app/theme/chromium/product_logo_256.png
+index 00000000..00000001 100644
+Binary files differ
+--
+2.44.0

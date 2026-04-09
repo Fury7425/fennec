@@ -1,0 +1,69 @@
+# ── Chromium source (fetched by `fennec bootstrap`) ──────────────────────────
+chromium-src/
+
+# ── Build output ──────────────────────────────────────────────────────────────
+out/
+dist/
+dist/webui/
+
+# ── Node.js ───────────────────────────────────────────────────────────────────
+node_modules/
+fennec-surfer/node_modules/
+fennec-surfer/dist/
+
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+
+# ── GN / Ninja build artifacts ────────────────────────────────────────────────
+*.ninja
+*.ninja_deps
+*.ninja_log
+args.gn
+.gn
+
+# ── Test / CI artifacts ───────────────────────────────────────────────────────
+*.report.json
+fennec-zero-req-test-*/
+
+# ── Signing keys and secrets ──────────────────────────────────────────────────
+*.pem
+*.p12
+*.pfx
+*.cer
+*.key
+.env
+.env.*
+!.env.example
+
+# ── OS ────────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Editors ───────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*.orig
+*~
+
+# ── Logs ──────────────────────────────────────────────────────────────────────
+*.log
+npm-debug.log*
+
+# ── Packaging artifacts ───────────────────────────────────────────────────────
+*.dmg
+*.AppImage
+*.exe
+*.msi
+*.zip
+*.tar.gz
+*.tar.xz

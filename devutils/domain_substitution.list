@@ -1,0 +1,61 @@
+# Files to process with domain_regex.list substitutions.
+# Paths are relative to chromium-src/. Glob patterns are supported.
+# Add new paths when new Google service integrations are found in Chromium.
+
+# Browser-level service clients
+chrome/browser/browser_process_impl.cc
+chrome/browser/net/chrome_network_delegate.cc
+chrome/browser/net/prediction_options.cc
+chrome/browser/google/google_url_tracker_factory.cc
+chrome/browser/google/google_brand.cc
+
+# Update client
+components/update_client/update_client.cc
+components/update_client/url_fetcher_downloader.cc
+chrome/browser/update_client/chrome_update_query_params_delegate.cc
+
+# Safe Browsing
+components/safe_browsing/core/common/safe_browsing_prefs.cc
+components/safe_browsing/core/browser/db/v4_protocol_manager_util.cc
+chrome/browser/safe_browsing/safe_browsing_service.cc
+
+# Translate
+components/translate/core/browser/translate_url_util.cc
+components/translate/core/browser/translate_language_list.cc
+
+# Spellcheck
+chrome/browser/spellchecker/spellcheck_service.cc
+chrome/browser/spellchecker/spellcheck_factory.cc
+
+# Sign-in / accounts
+chrome/browser/signin/chrome_signin_client.cc
+chrome/browser/signin/signin_promo.cc
+
+# Variations / field trials
+chrome/browser/variations/chrome_variations_service_client.cc
+components/variations/service/variations_service.cc
+
+# Metrics / UMA
+components/metrics/metrics_service.cc
+components/metrics/net/network_metrics_provider.cc
+
+# WebUI pages referencing Google URLs
+chrome/browser/ui/webui/help/version_updater_chromeos.cc
+chrome/browser/ui/webui/new_tab_page/new_tab_page_handler.cc
+
+# Extensions
+chrome/browser/extensions/api/webstore_private/webstore_private_api.cc
+chrome/common/extensions/extension_constants.cc
+
+# GRD string files
+chrome/app/chromium_strings.grd
+chrome/app/generated_resources.grd
+components/strings/components_chromium_strings.grd
+components/strings/components_strings.grd
+
+# DNS
+net/dns/dns_config_service.cc
+chrome/browser/net/dns_probe_service.cc
+
+# Crashpad
+chrome/browser/crash_upload_list/crash_upload_list_crashpad.cc

@@ -1,0 +1,51 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# PILLAR: Privacy
+# JOURNAL: yes
+
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Fennec Authors <patches@fennec.computer>
+Date: Mon, 08 Apr 2024 00:00:00 +0000
+Subject: [PATCH] privacy: bundle uBlock Origin as a component extension
+
+Bundles uBlock Origin (MV2) as a component extension that loads
+automatically at browser startup. Component extensions are loaded from
+a local path baked into the binary rather than from the Chrome Web Store.
+
+uBlock Origin is owned by gorhill (Raymond Hill) and licensed GPL-3.0.
+The bundled version is pinned and verified against its published SHA-256.
+Updates require a Fennec release (intentional — no surprise filter list
+changes, all updates go through the Request Journal).
+
+The uBO extension ID is kept identical to the published CWS version
+(cjpalhdlnbpafiamejdnhcphjbkeiagm) so that users who have uBO
+settings/lists synced can continue using them.
+
+TODO: Stub. Full component extension wiring (GN copy() rules, extension
+      loader registration) is tracked in: fennec-browser/fennec#43.
+      The uBO source bundle and its GN build rules are in a submodule:
+      third_party/ublock-origin/
+
+PILLAR: Privacy
+JOURNAL: uBO-blocked requests are logged as kBlocked in the Request
+         Journal. The block reason includes the filter list rule that
+         matched, e.g. "uBO: EasyList §easylist-general-block".
+
+---
+ chrome/browser/extensions/component_extensions_allowlist/allowlist.cc | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/chrome/browser/extensions/component_extensions_allowlist/allowlist.cc b/chrome/browser/extensions/component_extensions_allowlist/allowlist.cc
+index 1a2b3c4d..9e0f1a2b 100644
+--- a/chrome/browser/extensions/component_extensions_allowlist/allowlist.cc
++++ b/chrome/browser/extensions/component_extensions_allowlist/allowlist.cc
+@@ -88,6 +88,10 @@ bool IsComponentExtensionAllowlisted(const std::string& extension_id) {
+     // Fennec: uBlock Origin component extension (MV2, bundled locally)
++    case "cjpalhdlnbpafiamejdnhcphjbkeiagm":
++      // uBlock Origin — GPL-3.0
++      // Source: third_party/ublock-origin/ (git submodule)
++      return true;
+
+     default:
+       return false;
+--
+2.44.0

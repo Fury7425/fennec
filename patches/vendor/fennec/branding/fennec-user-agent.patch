@@ -1,0 +1,107 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# PILLAR: Privacy
+# JOURNAL: no
+
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Fennec Authors <patches@fennec.computer>
+Date: Mon, 08 Apr 2024 00:00:00 +0000
+Subject: [PATCH] branding: set Fennec user agent string
+
+Replaces "Chrome/X.Y.Z.W" in the User-Agent header with "Fennec/X.Y"
+(major.minor only). The underlying Chromium version is NOT exposed.
+
+Rationale:
+  - Privacy: exposing the exact Chromium version allows fingerprinting
+    of the Fennec update cadence and user population size.
+  - Honesty: we are shipping Fennec, not Chrome. The UA should say so.
+  - Compat: Chrome/X.Y is the compatibility token used by sites; we
+    keep "Chrome/X.Y" in the reduced UA where sites check only for that,
+    but our own token is Fennec/X.Y.
+
+UA format:
+  Mozilla/5.0 (<platform>) AppleWebKit/537.36 (KHTML, like Gecko)
+  Chrome/<compat-version> Fennec/<fennec-major.minor> Safari/537.36
+
+The <compat-version> is a static frozen Chrome version string (same
+approach Brave uses) so sites that parse the Chrome version for feature
+detection still work, but the exact Chromium revision is hidden.
+
+PILLAR: Privacy / Branding
+JOURNAL: none
+
+---
+ content/common/user_agent.cc                    | 28 ++++++++++++++---
+ chrome/browser/chrome_content_browser_client.cc |  9 ++++++
+ 2 files changed, 33 insertions(+), 4 deletions(-)
+
+diff --git a/content/common/user_agent.cc b/content/common/user_agent.cc
+index 4a5b6c7d..8e9f0a1b 100644
+--- a/content/common/user_agent.cc
++++ b/content/common/user_agent.cc
+@@ -20,6 +20,14 @@
+ #include "content/public/common/content_constants.h"
+ #include "content/public/common/user_agent.h"
+
++// Fennec UA configuration.
++// FENNEC_UA_COMPAT_VERSION: frozen Chrome version for site compatibility.
++// Keep this in sync with the latest LTS Chromium release to avoid breakage.
++// Update when Chromium ships a major feature that sites feature-detect.
++#ifndef FENNEC_UA_COMPAT_VERSION
++#define FENNEC_UA_COMPAT_VERSION "124.0.0.0"
++#endif
++#define FENNEC_UA_TOKEN "Fennec/" FENNEC_VERSION
++
+ namespace content {
+
+ std::string GetWebKitVersion() {
+@@ -55,14 +63,26 @@ std::string BuildUserAgentFromOSAndProduct(const std::string& os_info,
+                                             const std::string& product) {
+   // Derived from //third_party/blink/public/common/user_agent/user_agent_brand_list.h
+   //
+-  // The product string is injected by the embedder (e.g. "Chrome/124.0.6367.201").
+-  // We pass it through unchanged here.
++  // Fennec: replace the embedder product token with our own UA token.
++  // Format: Chrome/<compat> Fennec/<major.minor>
++  //
++  // The original product string from the embedder is discarded.
++  (void)product;  // intentionally unused after this patch
++
++  const std::string fennec_product =
++      std::string("Chrome/") + FENNEC_UA_COMPAT_VERSION +
++      " " + FENNEC_UA_TOKEN;
++
+   std::string user_agent;
+   base::StringAppendF(
+       &user_agent,
+       "Mozilla/5.0 (%s) AppleWebKit/%s (KHTML, like Gecko) %s Safari/%s",
+       os_info.c_str(),
+       GetWebKitVersion().c_str(),
+-      product.c_str(),
++      fennec_product.c_str(),
+       GetWebKitVersion().c_str());
+   return user_agent;
+ }
+
+diff --git a/chrome/browser/chrome_content_browser_client.cc b/chrome/browser/chrome_content_browser_client.cc
+index 7c8d9e0f..2a3b4c5e 100644
+--- a/chrome/browser/chrome_content_browser_client.cc
++++ b/chrome/browser/chrome_content_browser_client.cc
+@@ -1842,6 +1842,15 @@ std::string ChromeContentBrowserClient::GetProduct() {
+   // Called by content:: to build the User-Agent string.
+   // Returning the empty string here causes content:: to use its default,
+   // which we override in content/common/user_agent.cc (patch above).
++  //
++  // Fennec: we return an empty string so that the UA patch in
++  // content/common/user_agent.cc has full control over the product token.
++  // Nothing about the real Chromium version appears in the UA.
+   return std::string();
+ }
+
++std::string ChromeContentBrowserClient::GetUserAgent() {
++  // Force rebuild of UA through BuildUserAgentFromProduct so that our
++  // content/common/user_agent.cc patch is always applied.
++  return content::BuildUserAgentFromProduct("");
++}
++
+--
+2.44.0

@@ -1,0 +1,65 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# PILLAR: Privacy
+# JOURNAL: no
+
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Fennec Authors <patches@fennec.computer>
+Date: Mon, 08 Apr 2024 00:00:00 +0000
+Subject: [PATCH] networking: disable prefetch and preconnect by default
+
+Chromium speculatively prefetches resources and pre-connects to origins
+it predicts the user will visit. This leaks browsing intent to those
+origins before the user navigates there.
+
+This patch disables:
+  - DNS prefetching (predicts navigation targets from the address bar)
+  - Preconnect (opens TCP+TLS handshakes to predicted origins)
+  - Link prefetch (<link rel="prefetch"> on pages)
+  - Prerender (loads pages in background before navigation)
+  - NetworkPrediction service
+
+All four are disabled by default. Users can re-enable them individually
+via Settings → Privacy → Predictive features.
+
+PILLAR: Privacy / Transparency
+JOURNAL: none — this patch prevents requests that would otherwise happen
+
+---
+ chrome/browser/profiles/profile_impl.cc | 12 +++++++++++-
+ chrome/common/pref_names.cc             |  4 ++--
+ chrome/common/pref_names.h              |  2 ++
+ 3 files changed, 15 insertions(+), 3 deletions(-)
+
+diff --git a/chrome/browser/profiles/profile_impl.cc b/chrome/browser/profiles/profile_impl.cc
+index 3e4f5d6a..9b8c7d0e 100644
+--- a/chrome/browser/profiles/profile_impl.cc
++++ b/chrome/browser/profiles/profile_impl.cc
+@@ -415,6 +415,18 @@ void ProfileImpl::RegisterProfilePrefs(
+   registry->RegisterBooleanPref(prefs::kNetworkPredictionEnabled,
+-                                 true,
++                                 false,  // Fennec: off by default
+                                  user_prefs::PrefRegistrySyncable::SYNCABLE_PREF);
++
++  // Fennec: disable all speculative network activity by default.
++  // Each can be re-enabled individually in Settings → Privacy.
++  registry->RegisterBooleanPref(prefs::kDnsPrefetchingEnabled, false);
++  registry->RegisterBooleanPref(prefs::kPreconnectEnabled, false);
++  registry->RegisterBooleanPref(prefs::kLinkPrefetchEnabled, false);
++  registry->RegisterBooleanPref(prefs::kPrerenderEnabled, false);
+ }
+
+diff --git a/chrome/common/pref_names.cc b/chrome/common/pref_names.cc
+index 8a7b6c5d..1e2f3d4e 100644
+--- a/chrome/common/pref_names.cc
++++ b/chrome/common/pref_names.cc
+@@ -502,8 +502,8 @@ namespace prefs {
+ // Whether DNS prefetching is enabled.
+ const char kDnsPrefetchingEnabled[] = "net.dns_prefetching_enabled";
+
+-// Default: true (Chromium default)
+-// Fennec override: false — registered in ProfileImpl::RegisterProfilePrefs
++// Fennec default: false
++// Re-enable: Settings → Privacy → DNS prefetching
+
+--
+2.44.0

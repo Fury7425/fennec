@@ -1,0 +1,46 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# PILLAR: Transparency
+# JOURNAL: yes
+
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Fennec Authors <patches@fennec.computer>
+Date: Mon, 08 Apr 2024 00:00:00 +0000
+Subject: [PATCH] ui: register fennec://setup and SetupPageHandler
+
+Registers the fennec://setup WebUI page and its C++ handler:
+  FennecSetupUI   — WebUIController, serves the React bundle
+  SetupPageHandler — Mojo handler, bridges window.__fennec.setup.commit()
+                     to C++ profile initialisation
+
+On setup completion, SetupPageHandler::HandleCommit():
+  1. Writes the user's consent choices to profile prefs
+  2. Calls ReleaseConsentGuard() (consent-first-no-boot-requests.patch)
+  3. Enables any opted-in services (filter list updates, Mods registry)
+  4. Sets prefs::kFennecSetupCompleted = true
+  5. Navigates to fennec://newtab
+
+The setup page is shown on first launch only. Subsequent launches
+skip it (kFennecSetupCompleted check in ChromeBrowserMainParts).
+
+TODO: Stub for the C++ handler. React UI is already implemented in
+      src/ui/setup/. Full handler wiring tracked: fennec-browser/fennec#19
+
+PILLAR: Transparency / Calm UI
+JOURNAL: After consent is granted and the guard is released, this handler
+         fires one kFennecInternal event "setup-complete" in the Journal.
+---
+ chrome/browser/fennec/setup_page_handler.cc | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/chrome/browser/fennec/setup_page_handler.cc b/chrome/browser/fennec/setup_page_handler.cc
+new file mode 100644
+index 0000000..0000001
+--- /dev/null
++++ b/chrome/browser/fennec/setup_page_handler.cc
+@@ -0,0 +1,4 @@
++// TODO(fennec Phase 2): Implement SetupPageHandler::HandleCommit().
++// - Write consent prefs from the JS SetupState payload
++// - Call fennec::ReleaseConsentGuard()
++// - Navigate to fennec://newtab
+--
+2.44.0

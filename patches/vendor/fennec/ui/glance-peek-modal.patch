@@ -1,0 +1,47 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# PILLAR: Calm UI
+# JOURNAL: yes
+
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Fennec Authors <patches@fennec.computer>
+Date: Mon, 08 Apr 2024 00:00:00 +0000
+Subject: [PATCH] ui: Glance — hold modifier + click to open a peek overlay
+
+Implements the Glance peek modal: hold a modifier key (default: Alt)
+and click any link to open it in a floating overlay without navigating
+away from the current page.
+
+The overlay is a full WebContents rendered in a Views BubbleDialogDelegate
+positioned over the tab content area. It is dismissed by:
+  - Pressing Escape
+  - Clicking outside the overlay
+  - Navigation in the underlying tab
+
+The overlay WebContents is isolated: no cookies from the parent tab are
+shared; referrer is stripped.
+
+CSS tokens: --fnc-glance-* (width, height, radius, shadow, blur, animations)
+
+TODO: Stub. Full implementation in Phase 2.
+      Tracked: fennec-browser/fennec#15
+      Reference: Zen Browser Glance, Arc Browser Peek
+
+PILLAR: Calm UI
+JOURNAL: Requests made inside the Glance overlay are logged in the
+         Request Journal with source_type = "glance" for traceability.
+---
+ chrome/browser/ui/views/fennec/glance_bubble_view.cc | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/chrome/browser/ui/views/fennec/glance_bubble_view.cc b/chrome/browser/ui/views/fennec/glance_bubble_view.cc
+new file mode 100644
+index 0000000..0000001
+--- /dev/null
++++ b/chrome/browser/ui/views/fennec/glance_bubble_view.cc
+@@ -0,0 +1,4 @@
++// TODO(fennec Phase 2): Implement GlanceBubbleView.
++// - BubbleDialogDelegate containing a full WebContentsView
++// - Modifier+click handler in RenderViewHostImpl
++// - CSS token bridge for --fnc-glance-* variables
+--
+2.44.0

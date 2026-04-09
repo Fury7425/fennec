@@ -1,0 +1,45 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# PILLAR: Calm UI
+# JOURNAL: no
+
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Fennec Authors <patches@fennec.computer>
+Date: Mon, 08 Apr 2024 00:00:00 +0000
+Subject: [PATCH] ui: split view — tile 2–4 WebContents in one window
+
+Adds a SplitViewLayout manager to BrowserView that tiles 2–4 active
+WebContents in a single window. Each tile is a full WebContents with
+its own navigation bar.
+
+Layouts:
+  - Vertical split (left | right)
+  - Horizontal split (top | bottom)
+  - 2×2 grid
+
+Triggered by:
+  - Dragging a tab from the sidebar onto another tab (drop zone appears)
+  - Keyboard shortcut: Cmd/Ctrl+Shift+\ (toggle split)
+  - Context menu on a tab: "Open in split view"
+
+Dividers are draggable; position persisted per workspace.
+
+TODO: Stub. Full implementation in Phase 2.
+      Tracked: fennec-browser/fennec#14
+
+PILLAR: Calm UI
+JOURNAL: none
+---
+ chrome/browser/ui/views/frame/browser_view.cc | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/chrome/browser/ui/views/frame/browser_view.cc b/chrome/browser/ui/views/frame/browser_view.cc
+index 0000000..0000001 100644
+--- a/chrome/browser/ui/views/frame/browser_view.cc
++++ b/chrome/browser/ui/views/frame/browser_view.cc
+@@ -1,3 +1,7 @@
++// TODO(fennec Phase 2): Add FennecSplitViewLayout to BrowserView.
++// - FennecSplitViewLayout owns a vector<WebContentsView*> tiles
++// - Implements BrowserViewLayout hooks for resizing
++// - Tile dividers use --fnc-split-divider-* CSS tokens
+--
+2.44.0

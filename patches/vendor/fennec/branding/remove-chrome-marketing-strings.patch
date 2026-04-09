@@ -1,0 +1,68 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# PILLAR: Transparency
+# JOURNAL: no
+
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Fennec Authors <patches@fennec.computer>
+Date: Mon, 08 Apr 2024 00:00:00 +0000
+Subject: [PATCH] branding: remove Chrome/Google marketing strings from UI
+
+Removes or neutralises strings in the Chromium UI that promote Google
+services, recommend signing into a Google account, or reference the
+Chrome brand. These strings appear in:
+  - The profile bubble ("Sign in to Chrome")
+  - The NTP ("Get more out of Chrome")
+  - Password manager promotion ("Save to Google Account")
+  - "Made by Google" footer in some dialogs
+
+Strings are replaced with Fennec-neutral equivalents or removed entirely
+where the feature itself is also disabled.
+
+ungoogled-chromium removes most of these already; this patch covers
+any that slip through, and adds Fennec-specific replacements for strings
+ungoogled-chromium simply deletes (which would show blank UI in our case).
+
+PILLAR: Branding / Privacy
+JOURNAL: none
+
+---
+ chrome/app/chromium_strings.grd | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/chrome/app/chromium_strings.grd b/chrome/app/chromium_strings.grd
+index e5f6a7b8..9d0e1f2a 100644
+--- a/chrome/app/chromium_strings.grd
++++ b/chrome/app/chromium_strings.grd
+@@ -92,20 +92,20 @@
+       <message name="IDS_SIGNIN_PROMO_SIGNIN_BUTTON_TEXT_MD" desc="Sign-in promo button.">
+-        Sign in to Chrome
++        Sign in
+       </message>
+
+       <message name="IDS_NTP_CUSTOM_BACKGROUND_RESTORE_TOOLTIP" desc="Tooltip to restore NTP background.">
+-        Restore the Chrome default background
++        Restore the default background
+       </message>
+
+       <message name="IDS_SETTINGS_SYNC_DESCRIPTION" desc="Description of sync feature.">
+-        Sync your bookmarks, passwords, and more to your Google Account. Available on all your Chrome devices.
++        Sync your bookmarks and settings. Configure a sync server in Settings → Services.
+       </message>
+
+       <message name="IDS_PASSWORDS_GOOGLE_ACCOUNT_LINK_LABEL" desc="Link to manage passwords in Google account.">
+-        Manage in your Google Account
++        Manage passwords
+       </message>
+
+       <message name="IDS_SAVE_PASSWORD_TO_ACCOUNT" desc="Save password prompt.">
+-        Save password to your Google Account?
++        Save this password?
+       </message>
+
+       <message name="IDS_CHROME_SIGNIN_PROMPT_FOR_NEW_PROFILE" desc="Sign-in prompt.">
+-        Get more out of Chrome
++        Fennec — private by default
+       </message>
+
+--
+2.44.0

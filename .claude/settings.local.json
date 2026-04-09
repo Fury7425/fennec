@@ -1,0 +1,33 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git config:*)",
+      "Bash(git -C \"E:/프로젝트/fennnec\" log --oneline)",
+      "Bash(python3 -c ':*)",
+      "Bash(python3)",
+      "Bash(python3 /tmp/extract.py)",
+      "Bash(grep -l \"SPDX-License-Identifier\" \"E:/프로젝트/fennnec/patches/vendor/fennec/\"**/*.patch)",
+      "Bash(python3 extract.py)",
+      "Bash(python3 /e/프로젝트/fennnec/extract_jsonl.py)",
+      "Bash(python3 /e/프로젝트/fennnec/extract_jsonl.py \"fennnec/surfer.json\")",
+      "Bash(grep -v '^[[:space:]]*$')",
+      "Bash(grep '\\\\.patch$' \"E:/프로젝트/fennnec/patches/series\")",
+      "Bash(python3 /e/프로젝트/fennnec/extract_jsonl.py \"fennnec/package.json\")",
+      "Bash(python3 /e/프로젝트/fennnec/extract_jsonl.py \"fennnec/tsconfig.json\")",
+      "Bash(python3 /e/프로젝트/fennnec/extract_jsonl.py \"fennnec/vite.config.ts\")",
+      "Bash(python3 /e/프로젝트/fennnec/extract_jsonl.py \"fennnec/.gitignore\")",
+      "Bash(python3 /e/프로젝트/fennnec/extract_jsonl.py \"fennnec/.gitmodules\")",
+      "Bash(python3 /e/프로젝트/fennnec/extract_jsonl.py \"fennnec/LICENSE\")",
+      "Bash(python3 /e/프로젝트/fennnec/extract_jsonl.py \"fennec-surfer/src/index.ts\")",
+      "Bash(python3 /e/프로젝트/fennnec/extract_jsonl.py \"fennec-surfer/src/utils/logger.ts\")",
+      "Bash(python3 /e/프로젝트/fennnec/extract_jsonl.py \"fennec-surfer/src/utils/shell.ts\")",
+      "Bash(python3 /e/프로젝트/fennnec/extract_jsonl.py \"fennec-surfer/src/utils/platform.ts\")",
+      "Bash(python3 /e/프로젝트/fennnec/extract_jsonl.py \"fennec-surfer/src/utils/config.ts\")",
+      "Bash(python3 /e/프로젝트/fennnec/extract_jsonl.py \"fennec-surfer/src/commands/bootstrap.ts\")",
+      "Bash(python3 /e/프로젝트/fennnec/extract_jsonl.py \"fennec-surfer/src/commands/patch.ts\")",
+      "Bash(python3 /e/프로젝트/fennnec/extract_jsonl.py \"fennec-surfer/src/commands/build.ts\")",
+      "Bash(python3 /e/프로젝트/fennnec/extract_jsonl.py \"fennec-surfer/src/commands/package.ts\")",
+      "Bash(python3 /e/프로젝트/fennnec/extract_jsonl.py \"fennec-surfer/src/commands/release.ts\")"
+    ]
+  }
+}

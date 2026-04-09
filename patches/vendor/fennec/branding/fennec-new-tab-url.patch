@@ -1,0 +1,61 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# PILLAR: Calm UI
+# JOURNAL: no
+
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Fennec Authors <patches@fennec.computer>
+Date: Mon, 08 Apr 2024 00:00:00 +0000
+Subject: [PATCH] branding: redirect new tab to fennec://newtab
+
+Overrides the New Tab URL to serve Fennec's custom React new tab page
+(fenec://newtab) instead of Chromium's chrome://new-tab-page.
+
+The fennec://newtab page is a Vite-compiled React bundle served via
+WebUIDataSource — the same pipeline as fennec://setup.
+
+Implementation:
+  1. Patches chrome/browser/ui/chrome_pages.cc to redirect GetNewTabURL()
+  2. Registers the fennec://newtab scheme handler (WebUIController)
+  3. Disables the chrome-search:// scheme used by the native NTP code
+
+PILLAR: Calm UI / Branding
+JOURNAL: none (no network calls; page is fully local)
+
+---
+ chrome/browser/ui/chrome_pages.cc | 14 ++++++++++----
+ 1 file changed, 10 insertions(+), 4 deletions(-)
+
+diff --git a/chrome/browser/ui/chrome_pages.cc b/chrome/browser/ui/chrome_pages.cc
+index 3c4d5e6f..7a8b9c0d 100644
+--- a/chrome/browser/ui/chrome_pages.cc
++++ b/chrome/browser/ui/chrome_pages.cc
+@@ -55,6 +55,8 @@
+ #include "chrome/browser/search/search.h"
+ #include "url/gurl.h"
+
++#include "chrome/browser/fennec/fennec_version.h"
++
+ namespace chrome {
+
+ namespace {
+@@ -62,11 +64,15 @@ namespace {
+ // Returns the URL for the New Tab page.
+ // Fennec: redirect to fenec://newtab (our React WebUI page).
+ GURL GetNewTabURLInternal() {
+-  // Chromium default: chrome://new-tab-page
+-  return GURL("chrome://new-tab-page/");
++  return GURL(FENNEC_NEW_TAB_URL);
+ }
+
+ }  // namespace
+
+ GURL GetNewTabURL() {
+-  return search::GetNewTabPageURL(ProfileManager::GetActiveUserProfile());
++  // Bypass Chromium's search NTP override mechanism entirely.
++  // Fennec's new tab page is always fennec://newtab — it cannot be replaced
++  // by a search engine or extension (unless the user explicitly configures it).
++  return GURL(FENNEC_NEW_TAB_URL);
+ }
+
+--
+2.44.0

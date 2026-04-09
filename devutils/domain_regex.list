@@ -1,0 +1,63 @@
+# Fennec domain substitution rules
+# Format: PATTERN<TAB>REPLACEMENT
+# Applied by devutils/domain_substitution.py to files in domain_substitution.list
+# All Google-owned domains are replaced with qjz9zk placeholders.
+
+# ── Google domains ────────────────────────────────────────────────────────────
+https?://([a-z0-9\-]+\.)*google\.com/	https://\1qjz9zk.qjz9zk/
+https?://([a-z0-9\-]+\.)*googleapis\.com/	https://\1qjz9zk-api.qjz9zk/
+https?://([a-z0-9\-]+\.)*gstatic\.com/	https://\1qjz9zk-static.qjz9zk/
+https?://([a-z0-9\-]+\.)*googleusercontent\.com/	https://\1qjz9zk-usercontent.qjz9zk/
+https?://([a-z0-9\-]+\.)*googlesyndication\.com/	https://\1qjz9zk-syndication.qjz9zk/
+https?://([a-z0-9\-]+\.)*googleadservices\.com/	https://\1qjz9zk-adservices.qjz9zk/
+
+# ── Telemetry / UMA ───────────────────────────────────────────────────────────
+https?://uma\.googleapis\.com/	https://uma.qjz9zk/
+https?://clients[24]\.google\.com/	https://clients.qjz9zk/
+https?://update\.googleapis\.com/	https://update.qjz9zk/
+https?://clientservices\.googleapis\.com/	https://clientservices.qjz9zk/
+
+# ── Safe Browsing ─────────────────────────────────────────────────────────────
+https?://safebrowsing\.googleapis\.com/	https://safebrowsing.qjz9zk/
+https?://safebrowsing\.google\.com/	https://safebrowsing-legacy.qjz9zk/
+https?://sb-ssl\.google\.com/	https://sb-ssl.qjz9zk/
+
+# ── Google accounts / sign-in ─────────────────────────────────────────────────
+https?://accounts\.google\.com/	https://accounts.qjz9zk/
+https?://myaccount\.google\.com/	https://myaccount.qjz9zk/
+
+# ── Crashpad / error reporting ────────────────────────────────────────────────
+https?://crashpad\.chromium\.org/	https://crashpad.qjz9zk/
+https?://clients2\.google\.com/cr/	https://clients2.qjz9zk/cr/
+
+# ── Chrome Web Store ──────────────────────────────────────────────────────────
+https?://chrome\.google\.com/webstore/	https://webstore.qjz9zk/
+
+# ── Google Translate ──────────────────────────────────────────────────────────
+https?://translate\.googleapis\.com/	https://translate.qjz9zk/
+https?://translate\.google\.com/	https://translate-legacy.qjz9zk/
+
+# ── Field trials / variations ─────────────────────────────────────────────────
+https?://fieldtrialstorage\.googleapis\.com/	https://fieldtrials.qjz9zk/
+https?://chromecanary\.com/	https://chromecanary.qjz9zk/
+
+# ── DNS-over-HTTPS ────────────────────────────────────────────────────────────
+https?://dns\.google/	https://dns.qjz9zk/
+https://8\.8\.8\.8/dns-query	https://8.8.8.8.qjz9zk/dns-query
+https://8\.8\.4\.4/dns-query	https://8.8.4.4.qjz9zk/dns-query
+
+# ── Omaha / update ────────────────────────────────────────────────────────────
+https?://tools\.google\.com/service/update2	https://tools.qjz9zk/service/update2
+https?://update3\.googleapis\.com/	https://update3.qjz9zk/
+
+# ── Spellcheck ────────────────────────────────────────────────────────────────
+https?://www\.googleapis\.com/rpc/spelling	https://spelling.qjz9zk/rpc/spelling
+
+# ── API keys ──────────────────────────────────────────────────────────────────
+"AIza[A-Za-z0-9_\-]{35}"	"no"
+GOOGLE_API_KEY = "[A-Za-z0-9_\-]{20,}"	GOOGLE_API_KEY = "no"
+kGoogleApiKey\[\] = "[A-Za-z0-9_\-]{10,}"	kGoogleApiKey[] = "no"
+
+# ── String literals in GRD / source ──────────────────────────────────────────
+google\.com/chrome	qjz9zk/chrome
+support\.google\.com	support.qjz9zk

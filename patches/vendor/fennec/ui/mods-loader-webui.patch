@@ -1,0 +1,49 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# PILLAR: Mods
+# JOURNAL: no
+
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Fennec Authors <patches@fennec.computer>
+Date: Mon, 08 Apr 2024 00:00:00 +0000
+Subject: [PATCH] ui: Mods loader — inject Mod CSS/JS into WebUI pages
+
+Implements the FennecModLoader which reads installed Mods from the
+SQLite Mods registry (src/mods/) and injects their CSS and JS into
+the appropriate fennec:// WebUI pages at page load time.
+
+Injection order per page:
+  1. tokens.css (base tokens, always first)
+  2. Active theme Mod token overrides (from manifest.json "tokens" block)
+  3. Active theme Mod CSS files (in manifest order)
+  4. Active UI Mod CSS files
+  5. Active UI Mod JS entry points (sandboxed — no page content access)
+
+The loader respects the "surfaces" declaration in each Mod's manifest:
+a Mod targeting ["sidebar"] is only injected into fennec://sidebar.
+
+window.__fennec.ui API is exposed only in WebUI contexts where a Mod
+with type="ui" is active. Page content never sees this API.
+
+TODO: Stub. Full implementation in Phase 2.
+      Tracked: fennec-browser/fennec#18
+
+PILLAR: Customization
+JOURNAL: none — Mod loading is local. If a Mod declares
+         makes_network_requests=true it is rejected at registry
+         validation time and never installed.
+---
+ chrome/browser/fennec/mod_loader.cc | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/chrome/browser/fennec/mod_loader.cc b/chrome/browser/fennec/mod_loader.cc
+new file mode 100644
+index 0000000..0000001
+--- /dev/null
++++ b/chrome/browser/fennec/mod_loader.cc
+@@ -0,0 +1,4 @@
++// TODO(fennec Phase 2): Implement FennecModLoader.
++// - Read installed Mods from SQLite mods registry
++// - Inject CSS/JS into matching fennec:// WebUI pages
++// - Expose window.__fennec.ui API in ui-type Mod contexts
+--
+2.44.0

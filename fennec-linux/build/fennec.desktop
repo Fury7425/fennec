@@ -1,0 +1,12 @@
+[Desktop Entry]
+Name=Fennec
+GenericName=Web Browser
+Comment=A browser that respects you
+Exec=fennec %U
+Icon=fennec
+Terminal=false
+Type=Application
+Categories=Network;WebBrowser;
+MimeType=text/html;text/xml;application/xhtml+xml;application/xhtml_xml;application/rss+xml;application/rdf+xml;x-scheme-handler/http;x-scheme-handler/https;
+StartupNotify=true
+StartupWMClass=fennec

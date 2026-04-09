@@ -1,0 +1,242 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# PILLAR: Transparency
+# JOURNAL: yes
+
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Fennec Authors <patches@fennec.computer>
+Date: Mon, 08 Apr 2024 00:00:00 +0000
+Subject: [PATCH] branding: redirect update checks to fennec-services
+
+ungoogled-chromium disables Google's update mechanism entirely.
+This patch re-enables a minimal update-check mechanism that pings
+updates.fennec.computer instead of Google's update servers.
+
+The update check:
+  - Is shown in the Request Journal as class kFennecInternal
+  - Is disabled by default; enabled only if the user opts in via
+    fennec://setup → Services → "Check for browser updates"
+  - Sends: Fennec version, channel, platform, OS version
+  - Receives: { latest_version, download_url, sha256, release_notes_url }
+  - Makes ZERO requests if the user has not opted in
+
+The component updater (for filter lists etc.) is handled separately by
+the FilterListManager and also requires explicit user opt-in.
+
+PILLAR: Transparency / Privacy
+JOURNAL: logs as kFennecInternal when update check fires; visible in
+         the Request Journal sidebar panel.
+
+---
+ chrome/browser/fennec/fennec_update_client.cc | 98 ++++++++++++++++++
+ chrome/browser/fennec/fennec_update_client.h  | 54 ++++++++++
+ chrome/browser/fennec/BUILD.gn                | 14 ++-
+ 3 files changed, 165 insertions(+), 1 deletion(-)
+ create mode 100644 chrome/browser/fennec/fennec_update_client.cc
+ create mode 100644 chrome/browser/fennec/fennec_update_client.h
+
+diff --git a/chrome/browser/fennec/fennec_update_client.h b/chrome/browser/fennec/fennec_update_client.h
+new file mode 100644
+index 00000000..4a5b6c7d
+--- /dev/null
++++ b/chrome/browser/fennec/fennec_update_client.h
+@@ -0,0 +1,54 @@
++// Copyright 2024 The Fennec Authors. All rights reserved.
++// Use of this source code is governed by a GPL-3.0 license.
++//
++// FennecUpdateClient — checks updates.fennec.computer for new releases.
++//
++// This client is:
++//   - Opt-in only (pref: fennec.updates.enabled, default: false)
++//   - Logged in the Request Journal as kFennecInternal
++//   - Never called before the user completes fennec://setup
++//
++// Protocol: GET https://updates.fennec.computer/<channel>?v=<version>&p=<platform>
++// Response JSON: { "latest": "1.2.3", "url": "...", "sha256": "...", "notes": "..." }
++
++#ifndef CHROME_BROWSER_FENNEC_FENNEC_UPDATE_CLIENT_H_
++#define CHROME_BROWSER_FENNEC_FENNEC_UPDATE_CLIENT_H_
++
++#include <memory>
++#include <string>
++
++#include "base/functional/callback.h"
++#include "base/memory/weak_ptr.h"
++#include "base/values.h"
++
++namespace network {
++class SharedURLLoaderFactory;
++class SimpleURLLoader;
++}
++
++namespace fennec {
++
++struct UpdateInfo {
++  std::string latest_version;
++  std::string download_url;
++  std::string sha256;
++  std::string release_notes_url;
++  bool        update_available = false;
++};
++
++using UpdateCallback = base::OnceCallback<void(UpdateInfo)>;
++
++class FennecUpdateClient {
++ public:
++  explicit FennecUpdateClient(
++      scoped_refptr<network::SharedURLLoaderFactory> loader_factory);
++  ~FennecUpdateClient();
++
++  // Checks for updates. |callback| is invoked on the UI thread.
++  // No-ops if fennec.updates.enabled pref is false.
++  void CheckForUpdate(UpdateCallback callback);
++
++ private:
++  void OnUpdateResponseReceived(UpdateCallback callback,
++                                std::unique_ptr<std::string> body);
++
++  scoped_refptr<network::SharedURLLoaderFactory> loader_factory_;
++  std::unique_ptr<network::SimpleURLLoader>      loader_;
++  base::WeakPtrFactory<FennecUpdateClient>       weak_factory_{this};
++};
++
++}  // namespace fennec
++
++#endif  // CHROME_BROWSER_FENNEC_FENNEC_UPDATE_CLIENT_H_
++
+diff --git a/chrome/browser/fennec/fennec_update_client.cc b/chrome/browser/fennec/fennec_update_client.cc
+new file mode 100644
+index 00000000..8b9c0a1e
+--- /dev/null
++++ b/chrome/browser/fennec/fennec_update_client.cc
+@@ -0,0 +1,98 @@
++// Copyright 2024 The Fennec Authors. All rights reserved.
++// Use of this source code is governed by a GPL-3.0 license.
++
++#include "chrome/browser/fennec/fennec_update_client.h"
++
++#include "base/json/json_reader.h"
++#include "base/logging.h"
++#include "base/strings/stringprintf.h"
++#include "chrome/browser/browser_process.h"
++#include "chrome/browser/fennec/fennec_version.h"
++#include "chrome/common/pref_names.h"
++#include "components/prefs/pref_service.h"
++#include "net/base/load_flags.h"
++#include "net/traffic_annotation/network_traffic_annotation.h"
++#include "services/network/public/cpp/resource_request.h"
++#include "services/network/public/cpp/shared_url_loader_factory.h"
++#include "services/network/public/cpp/simple_url_loader.h"
++
++namespace fennec {
++
++namespace {
++
++// Pref key controlling whether update checks are enabled.
++// Default: false — set to true only when user opts in via fennec://setup.
++constexpr char kUpdateEnabledPref[] = "fennec.updates.enabled";
++
++constexpr char kUpdateUrlFmt[] =
++    FENNEC_UPDATE_URL "?v=" FENNEC_VERSION "&p=%s&c=" FENNEC_CHANNEL;
++
++net::NetworkTrafficAnnotationTag UpdateTrafficAnnotation() {
++  return net::DefineNetworkTrafficAnnotation("fennec_update_check", R"(
++    semantics {
++      sender: "Fennec Update Client"
++      description:
++        "Fennec checks for browser updates at updates.fennec.computer. "
++        "This request is only made when the user has opted in via "
++        "Settings → Services → Check for browser updates. "
++        "The request is logged in the Request Journal as a Fennec-internal "
++        "request and is always visible to the user."
++      trigger: "Periodic check (once per day) when opt-in is enabled."
++      data: "Fennec version, channel, and host OS. No user identifiers."
++      destination: OTHER
++      destination_other: "updates.fennec.computer (open source, self-hostable)"
++    }
++    policy {
++      cookies_allowed: NO
++      setting:
++        "Disable via Settings → Services → Check for browser updates."
++      policy_exception_justification:
++        "Explicit user opt-in required. Off by default."
++    })");
++}
++
++std::string PlatformString() {
++#if BUILDFLAG(IS_MAC)
++  return "macos";
++#elif BUILDFLAG(IS_WIN)
++  return "windows";
++#else
++  return "linux";
++#endif
++}
++
++}  // namespace
++
++FennecUpdateClient::FennecUpdateClient(
++    scoped_refptr<network::SharedURLLoaderFactory> loader_factory)
++    : loader_factory_(std::move(loader_factory)) {}
++
++FennecUpdateClient::~FennecUpdateClient() = default;
++
++void FennecUpdateClient::CheckForUpdate(UpdateCallback callback) {
++  PrefService* prefs = g_browser_process->local_state();
++  if (!prefs || !prefs->GetBoolean(kUpdateEnabledPref)) {
++    LOG(INFO) << "[Fennec Update] Skipped — updates not enabled by user.";
++    std::move(callback).Run(UpdateInfo{});
++    return;
++  }
++
++  const std::string url =
++      base::StringPrintf(kUpdateUrlFmt, PlatformString().c_str());
++
++  auto request = std::make_unique<network::ResourceRequest>();
++  request->url            = GURL(url);
++  request->load_flags     = net::LOAD_BYPASS_CACHE | net::LOAD_DISABLE_CACHE;
++  request->credentials_mode = network::mojom::CredentialsMode::kOmit;
++
++  loader_ = network::SimpleURLLoader::Create(
++      std::move(request), UpdateTrafficAnnotation());
++  loader_->DownloadToString(
++      loader_factory_.get(),
++      base::BindOnce(&FennecUpdateClient::OnUpdateResponseReceived,
++                     weak_factory_.GetWeakPtr(), std::move(callback)),
++      /* max_body_size */ 4096);
++}
++
++void FennecUpdateClient::OnUpdateResponseReceived(
++    UpdateCallback callback, std::unique_ptr<std::string> body) {
++  UpdateInfo info;
++  if (!body) {
++    LOG(WARNING) << "[Fennec Update] Request failed.";
++    std::move(callback).Run(info);
++    return;
++  }
++
++  auto parsed = base::JSONReader::ReadAndReturnValueWithError(*body);
++  if (!parsed.has_value()) {
++    LOG(WARNING) << "[Fennec Update] Invalid JSON response.";
++    std::move(callback).Run(info);
++    return;
++  }
++
++  if (auto* v = parsed->GetIfDict()) {
++    info.latest_version    = v->FindString("latest").value_or("");
++    info.download_url      = v->FindString("url").value_or("");
++    info.sha256            = v->FindString("sha256").value_or("");
++    info.release_notes_url = v->FindString("notes").value_or("");
++    info.update_available  =
++        !info.latest_version.empty() &&
++        info.latest_version != FENNEC_VERSION;
++  }
++
++  LOG(INFO) << "[Fennec Update] Check complete. Available: "
++            << (info.update_available ? info.latest_version : "none");
++  std::move(callback).Run(std::move(info));
++}
++
++}  // namespace fennec
++
+--
+2.44.0

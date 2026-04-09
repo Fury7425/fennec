@@ -1,0 +1,89 @@
+# Fennec patch series
+# ─────────────────────────────────────────────────────────────────────────────
+# Patches are applied in order by `fennec patch apply`.
+# Lines beginning with # are comments. Blank lines are ignored.
+#
+# SECTION CONVENTION:
+#   core/ungoogled-chromium/  — populated by `fennec bootstrap` from upstream
+#   core/iridium/             — populated by `fennec bootstrap` from upstream
+#   vendor/fennec/            — checked into this repo; edit these directly
+#
+# core/ patches are NOT present in the repo on a fresh clone.
+# Run `fennec bootstrap` to fetch them. Use --skip-core in CI pre-bootstrap.
+#
+# ADDING A PATCH:
+#   fennec patch new <name> --section <section>
+#   Then edit the scaffolded file and append it to the correct section below.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ─── SECTION 1: ungoogled-chromium ───────────────────────────────────────────
+# Fetched from upstream at: https://github.com/nicowillis/ungoogled-chromium
+# Revision pinned in surfer.json: chromium.ungoogled_revision
+core/ungoogled-chromium/disable-google-url-tracker.patch
+core/ungoogled-chromium/disable-google-safe-browsing.patch
+core/ungoogled-chromium/disable-google-update-url.patch
+core/ungoogled-chromium/disable-google-cloud-messaging.patch
+core/ungoogled-chromium/disable-webrtc-log-uploader.patch
+core/ungoogled-chromium/disable-crash-reporter.patch
+core/ungoogled-chromium/disable-field-trial-service.patch
+core/ungoogled-chromium/remove-google-integration.patch
+core/ungoogled-chromium/disable-signin.patch
+core/ungoogled-chromium/disable-translate.patch
+core/ungoogled-chromium/disable-spellcheck-googled.patch
+core/ungoogled-chromium/block-trk-scheme.patch
+core/ungoogled-chromium/domain-substitution.patch
+core/ungoogled-chromium/disable-fonts-googleapis.patch
+core/ungoogled-chromium/privacy-sandbox-off-by-default.patch
+core/ungoogled-chromium/disable-fledge.patch
+core/ungoogled-chromium/disable-topics.patch
+
+# ─── SECTION 2: iridium hardening ────────────────────────────────────────────
+# Fetched from upstream at: https://github.com/iridium-browser/iridium-browser
+core/iridium/disable-battery-api.patch
+core/iridium/canvas-fingerprint-protection.patch
+core/iridium/webgl-fingerprint-protection.patch
+core/iridium/font-fingerprint-protection.patch
+core/iridium/audio-fingerprint-protection.patch
+core/iridium/hardware-concurrency-spoof.patch
+core/iridium/memory-info-spoof.patch
+core/iridium/disable-device-motion-api.patch
+core/iridium/disable-sensor-apis.patch
+core/iridium/referrer-policy-strict.patch
+core/iridium/no-mixed-content.patch
+
+# ─── SECTION 3: Fennec branding ──────────────────────────────────────────────
+vendor/fennec/branding/rename-chromium-to-fennec.patch
+vendor/fennec/branding/fennec-version-string.patch
+vendor/fennec/branding/fennec-about-page.patch
+vendor/fennec/branding/fennec-new-tab-url.patch
+vendor/fennec/branding/fennec-user-agent.patch
+vendor/fennec/branding/fennec-update-url.patch
+vendor/fennec/branding/remove-chrome-marketing-strings.patch
+vendor/fennec/branding/fennec-icon-resources.patch
+
+# ─── SECTION 4: Fennec networking / transparency ─────────────────────────────
+vendor/fennec/networking/consent-first-no-boot-requests.patch
+vendor/fennec/networking/request-journal-interceptor.patch
+vendor/fennec/networking/block-qjz9zk-domain.patch
+vendor/fennec/networking/proxy-web-store-requests.patch
+vendor/fennec/networking/disable-prefetch-by-default.patch
+
+# ─── SECTION 5: Fennec privacy ───────────────────────────────────────────────
+vendor/fennec/privacy/block-third-party-cookies-by-default.patch
+vendor/fennec/privacy/webrtc-ip-protection.patch
+vendor/fennec/privacy/https-only-mode-by-default.patch
+vendor/fennec/privacy/no-builtin-password-manager.patch
+vendor/fennec/privacy/no-sync-by-default.patch
+vendor/fennec/privacy/ublock-origin-component-extension.patch
+
+# ─── SECTION 6: Fennec UI ────────────────────────────────────────────────────
+vendor/fennec/ui/disable-horizontal-tabstrip.patch
+vendor/fennec/ui/vertical-sidebar-scaffold.patch
+vendor/fennec/ui/calm-address-bar.patch
+vendor/fennec/ui/sidebar-workspace-switcher.patch
+vendor/fennec/ui/split-view-layout.patch
+vendor/fennec/ui/glance-peek-modal.patch
+vendor/fennec/ui/fennec-webui-pages.patch
+vendor/fennec/ui/css-variable-theme-bridge.patch
+vendor/fennec/ui/mods-loader-webui.patch
+vendor/fennec/ui/fennec-setup-page.patch

@@ -1,0 +1,40 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# PILLAR: Calm UI
+# JOURNAL: no
+
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Fennec Authors <patches@fennec.computer>
+Date: Mon, 08 Apr 2024 00:00:00 +0000
+Subject: [PATCH] ui: disable the native horizontal tab strip
+
+Removes the BrowserView horizontal TabStrip from the browser chrome so
+it can be replaced by the Fennec vertical sidebar (see
+vertical-sidebar-scaffold.patch). Without this patch, both the native
+strip and the sidebar would be visible simultaneously.
+
+Approach (mirrors Zen Browser's Firefox patch):
+  1. Set TabStrip visibility to hidden via BrowserView::Layout()
+  2. Suppress the tab strip height reservation in BrowserViewLayout
+  3. Keep the TabStripModel alive — tab management logic is unchanged;
+     only the visual strip is hidden
+
+TODO: Stub. Full implementation in Phase 2.
+      Tracked: fennec-browser/fennec#10
+
+PILLAR: Calm UI
+JOURNAL: none
+---
+ chrome/browser/ui/views/frame/browser_view_layout.cc | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/chrome/browser/ui/views/frame/browser_view_layout.cc b/chrome/browser/ui/views/frame/browser_view_layout.cc
+index 0000000..0000001 100644
+--- a/chrome/browser/ui/views/frame/browser_view_layout.cc
++++ b/chrome/browser/ui/views/frame/browser_view_layout.cc
+@@ -1,3 +1,7 @@
++// TODO(fennec Phase 2): Hide the horizontal TabStrip here.
++// Replace with:
++//   tab_strip_->SetVisible(false);
++//   top_container_->SetTabStripHeight(0);
+--
+2.44.0

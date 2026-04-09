@@ -1,0 +1,106 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# PILLAR: Transparency
+# JOURNAL: no
+
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Fennec Authors <patches@fennec.computer>
+Date: Mon, 08 Apr 2024 00:00:00 +0000
+Subject: [PATCH] branding: rename Chromium to Fennec in GRD string resources
+
+Replace all user-visible occurrences of "Chromium" with "Fennec" in the
+GRD string files that drive the browser's UI strings.
+
+This patch is intentionally narrow — it covers only the product name and
+short product name strings. Other branding (icons, about page, user agent)
+are handled by separate patches so conflicts are easier to resolve.
+
+Files changed:
+  chrome/app/chromium_strings.grd
+  components/strings/components_chromium_strings.grd
+
+PILLAR: Branding
+JOURNAL: none
+
+---
+ chrome/app/chromium_strings.grd                    | 14 ++++++-------
+ components/strings/components_chromium_strings.grd |  6 +++---
+ 2 files changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/chrome/app/chromium_strings.grd b/chrome/app/chromium_strings.grd
+index a1b2c3d4..e5f6a7b8 100644
+--- a/chrome/app/chromium_strings.grd
++++ b/chrome/app/chromium_strings.grd
+@@ -13,9 +13,9 @@
+     <messages fallback_to_english="true">
+
+       <message name="IDS_PRODUCT_NAME" desc="The name of the product.">
+-        Chromium
++        Fennec
+       </message>
+       <message name="IDS_SHORT_PRODUCT_NAME" desc="A short version of the product name. Should be 10 characters or fewer.">
+-        Chromium
++        Fennec
+       </message>
+
+       <!-- IDS_PRODUCT_NAME is used in the following strings, update if needed -->
+@@ -28,7 +28,7 @@
+       </message>
+
+       <message name="IDS_APP_MENU_PRODUCT_NAME" desc="The product name used in the app menu.">
+-        &amp;Chromium
++        &amp;Fennec
+       </message>
+
+       <!-- Taskbar and About dialog -->
+@@ -41,7 +41,7 @@
+
+       <message name="IDS_ABOUT_PRODUCT_TITLE" desc="Title for the About dialog.">
+-        About Chromium
++        About Fennec
+       </message>
+
+       <message name="IDS_ABOUT_PRODUCT_VERSION_HEADER" desc="Version header in the About dialog.">
+@@ -55,15 +55,15 @@
+
+       <message name="IDS_UPDATE_RECOMMENDED_DIALOG_TITLE" desc="Title for the update recommended dialog.">
+-        Update Chromium
++        Update Fennec
+       </message>
+
+       <message name="IDS_UNINSTALL_CHROME" desc="Text of uninstall menu item.">
+-        Uninstall Chromium
++        Uninstall Fennec
+       </message>
+
+       <message name="IDS_DOWNLOAD_NOTIFIER_SERVICE_NAME" desc="Name of the Windows service for download notifications.">
+-        Chromium Updater
++        Fennec Updater
+       </message>
+
+diff --git a/components/strings/components_chromium_strings.grd b/components/strings/components_chromium_strings.grd
+index b9c8d7e6..f1a2b3c4 100644
+--- a/components/strings/components_chromium_strings.grd
++++ b/components/strings/components_chromium_strings.grd
+@@ -17,9 +17,9 @@
+     <messages fallback_to_english="true">
+
+       <message name="IDS_PRODUCT_NAME" desc="The name of the product.">
+-        Chromium
++        Fennec
+       </message>
+
+       <message name="IDS_SHORT_PRODUCT_NAME" desc="Short product name (<=10 chars).">
+-        Chromium
++        Fennec
+       </message>
+
+       <message name="IDS_FEEDBACK_BUGREPORT_USER_DESC" desc="Description in feedback form.">
+@@ -30,7 +30,7 @@
+
+       <message name="IDS_DEFAULT_BROWSER_CANT_CHANGE" desc="Error message when browser cannot set itself as default.">
+-        Chromium cannot be set as your default browser.
++        Fennec cannot be set as your default browser.
+       </message>
+
+--
+2.44.0

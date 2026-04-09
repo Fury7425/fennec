@@ -1,0 +1,50 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# PILLAR: Calm UI
+# JOURNAL: no
+
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Fennec Authors <patches@fennec.computer>
+Date: Mon, 08 Apr 2024 00:00:00 +0000
+Subject: [PATCH] ui: register fennec:// WebUI scheme and all page handlers
+
+Registers the fennec:// scheme as a WebUI scheme in Chromium's URL
+scheme registry and wires up WebUIControllers for all Fennec-managed
+pages:
+
+  fennec://setup      — consent-first onboarding (AboutFennecSetupUI)
+  fennec://newtab     — custom new tab page (FennecNewTabUI)
+  fennec://sidebar    — vertical tab sidebar panel (FennecSidebarUI)
+  fennec://settings   — settings pages (FennecSettingsUI)
+  fennec://about      — version and license info (AboutFennecUI)
+  fennec://journal    — Request Journal viewer (FennecJournalUI)
+
+All pages are served from bundles compiled by Vite (src/ui/) and
+embedded into the binary via GN resource_bundle() rules.
+
+The CSP for all fennec:// pages:
+  script-src 'self' chrome://resources;
+  style-src  'self' 'unsafe-inline';
+  img-src    'self' data:;
+  connect-src 'none';   ← no fetch() from WebUI pages
+
+TODO: Stub. Full WebUIController registration in Phase 2.
+      AboutFennecUI is already implemented (fennec-about-page.patch).
+      Tracked: fennec-browser/fennec#16
+
+PILLAR: Calm UI / Branding
+JOURNAL: none — fennec:// pages are local; no network calls.
+---
+ chrome/browser/ui/webui/chrome_web_ui_controller_factory.cc | 4 ++++
+ content/browser/child_process_security_policy_impl.cc       | 3 +++
+ 2 files changed, 7 insertions(+)
+
+diff --git a/content/browser/child_process_security_policy_impl.cc b/content/browser/child_process_security_policy_impl.cc
+index 0000000..0000001 100644
+--- a/content/browser/child_process_security_policy_impl.cc
++++ b/content/browser/child_process_security_policy_impl.cc
+@@ -1,3 +1,6 @@
++// TODO(fennec Phase 2): Register "fennec" as a WebUI scheme here.
++// RegisterWebUIScheme("fennec") alongside chrome:// registration.
++// All fennec:// pages are treated as privileged WebUI (same as chrome://).
+--
+2.44.0

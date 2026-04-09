@@ -1,0 +1,42 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# PILLAR: Calm UI
+# JOURNAL: no
+
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Fennec Authors <patches@fennec.computer>
+Date: Mon, 08 Apr 2024 00:00:00 +0000
+Subject: [PATCH] ui: sidebar workspace switcher — connect WorkspaceManager
+
+Wires WorkspaceManager (src/workspaces/workspace_manager.cc) into the
+sidebar WebUI panel. The workspace switcher appears at the top of the
+sidebar and shows named, color-coded workspaces.
+
+Integration:
+  - WorkspaceObserver → sidebar Mojo pipe → React WorkspaceSwitcher
+  - SwitchToWorkspace() called on sidebar tab-group click
+  - Active workspace tint applied via --fnc-ws-tint CSS variable
+    (bridge: css-variable-theme-bridge.patch)
+  - Tab suspension on workspace switch via SuspendWorkspaceTabs()
+
+Hooks into SessionRestoreImpl to restore workspace state on launch.
+
+TODO: Stub. Full implementation in Phase 2.
+      Tracked: fennec-browser/fennec#13
+
+PILLAR: Calm UI
+JOURNAL: none
+---
+ chrome/browser/sessions/session_restore.cc | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/chrome/browser/sessions/session_restore.cc b/chrome/browser/sessions/session_restore.cc
+index 0000000..0000001 100644
+--- a/chrome/browser/sessions/session_restore.cc
++++ b/chrome/browser/sessions/session_restore.cc
+@@ -1,3 +1,7 @@
++// TODO(fennec Phase 2): Restore workspaces from WorkspaceManager on launch.
++// - Call WorkspaceManager::RestoreFromDB() before tab restoration
++// - Map restored tabs to their workspace assignments
++// - Suspend tabs belonging to non-active workspaces
+--
+2.44.0

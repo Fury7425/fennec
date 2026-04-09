@@ -1,0 +1,42 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# PILLAR: Calm UI
+# JOURNAL: no
+
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Fennec Authors <patches@fennec.computer>
+Date: Mon, 08 Apr 2024 00:00:00 +0000
+Subject: [PATCH] ui: scaffold vertical tab sidebar WebUI panel
+
+Registers the fennec://sidebar WebUI page and adds a sidebar SidePanel
+entry to BrowserView. The sidebar hosts the React vertical tab list
+(src/ui/sidebar/), workspace switcher, and pinned tabs.
+
+The sidebar is rendered inside a SidePanel (Chromium's built-in right/
+left side panel infrastructure) patched to support left-side positioning.
+
+Design constraints:
+  - Icon-only by default (48px wide): expands to 240px on hover
+  - Ear motif: --fnc-sidebar-ear-accent-color stripe on the active tab
+  - Pinned tabs anchor to the bottom of the list
+  - Position (left/right) persisted per-profile as a pref
+
+TODO: Stub. Full implementation in Phase 2.
+      Tracked: fennec-browser/fennec#11
+
+PILLAR: Calm UI
+JOURNAL: none
+---
+ chrome/browser/ui/views/side_panel/side_panel_coordinator.cc | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/chrome/browser/ui/views/side_panel/side_panel_coordinator.cc b/chrome/browser/ui/views/side_panel/side_panel_coordinator.cc
+index 0000000..0000001 100644
+--- a/chrome/browser/ui/views/side_panel/side_panel_coordinator.cc
++++ b/chrome/browser/ui/views/side_panel/side_panel_coordinator.cc
+@@ -1,3 +1,7 @@
++// TODO(fennec Phase 2): Register the Fennec sidebar panel here.
++// - Add a SidePanelEntry for kFennecSidebar
++// - Set default side to LEFT (patch SidePanel to support left alignment)
++// - Connect WorkspaceManager and TabStripModel observers
+--
+2.44.0

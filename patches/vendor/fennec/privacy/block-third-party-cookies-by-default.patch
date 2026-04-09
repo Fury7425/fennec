@@ -1,0 +1,60 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# PILLAR: Privacy
+# JOURNAL: no
+
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Fennec Authors <patches@fennec.computer>
+Date: Mon, 08 Apr 2024 00:00:00 +0000
+Subject: [PATCH] privacy: block third-party cookies by default
+
+Sets the default cookie policy to BLOCK_ALL_THIRD_PARTY_COOKIES.
+Users can add per-site exceptions or re-enable third-party cookies
+globally via Settings → Privacy → Cookies.
+
+Chromium upstream default: ALLOW_ALL_COOKIES
+Fennec default:             BLOCK_ALL_THIRD_PARTY_COOKIES
+
+The pref is registered in ProfileImpl and honoured by
+CookieSettings::GetCookieSetting(). This single pref flip propagates
+to all cookie decisions made by the network stack without further
+patching.
+
+PILLAR: Privacy
+JOURNAL: none — this patch prevents cookie headers being sent/received,
+         which reduces the information in any logged request.
+
+---
+ chrome/browser/content_settings/cookie_settings_factory.cc | 6 ++++--
+ chrome/browser/profiles/profile_impl.cc                    | 5 +++++
+ 2 files changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/chrome/browser/content_settings/cookie_settings_factory.cc b/chrome/browser/content_settings/cookie_settings_factory.cc
+index 1a2b3c4d..8e9f0a1b 100644
+--- a/chrome/browser/content_settings/cookie_settings_factory.cc
++++ b/chrome/browser/content_settings/cookie_settings_factory.cc
+@@ -58,7 +58,9 @@ KeyedService* CookieSettingsFactory::BuildServiceInstanceFor(
+   return new CookieSettings(
+       HostContentSettingsMapFactory::GetForProfile(profile),
+       profile->GetPrefs(),
+-      // Chromium default: allow all cookies
+-      false /* block_third_party_cookies */,
++      // Fennec: block third-party cookies by default.
++      // Pref value overrides this at runtime; this is the compile-time default
++      // used if the pref has never been written (i.e., on first launch).
++      profile->GetPrefs()->GetBoolean(prefs::kBlockThirdPartyCookies),
+       extension_registry);
+ }
+
+diff --git a/chrome/browser/profiles/profile_impl.cc b/chrome/browser/profiles/profile_impl.cc
+index 9b8c7d0e..2c3d4e5f 100644
+--- a/chrome/browser/profiles/profile_impl.cc
++++ b/chrome/browser/profiles/profile_impl.cc
+@@ -420,6 +420,11 @@ void ProfileImpl::RegisterProfilePrefs(
+   // Fennec: set default cookie policy to block third-party cookies.
++  registry->RegisterBooleanPref(
++      prefs::kBlockThirdPartyCookies,
++      true,  // Fennec default: ON
++      user_prefs::PrefRegistrySyncable::SYNCABLE_PREF);
+ }
+--
+2.44.0

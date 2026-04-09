@@ -1,0 +1,31 @@
+name: Nightly
+
+on:
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { submodules: recursive }
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - run: cd fennec-surfer && npm ci && npm run build
+      - run: node fennec-surfer/dist/index.js bootstrap --channel nightly
+      - run: node fennec-surfer/dist/index.js build --channel nightly
+      - run: node fennec-surfer/dist/index.js package --channel nightly
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { submodules: recursive }
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - run: cd fennec-surfer && npm ci && npm run build
+      - run: node fennec-surfer/dist/index.js bootstrap --channel nightly
+      - run: node fennec-surfer/dist/index.js build --channel nightly
+      - run: node fennec-surfer/dist/index.js package --channel nightly

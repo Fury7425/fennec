@@ -1,0 +1,70 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "FennecMod",
+  "description": "Manifest schema for Fennec browser Mods",
+  "type": "object",
+  "required": ["id", "name", "version", "fennecVersion", "entry"],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*[a-z0-9]$",
+      "description": "Unique kebab-case identifier for this mod"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "description": "Human-readable display name"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Semver version string"
+    },
+    "fennecVersion": {
+      "type": "string",
+      "description": "Minimum Fennec version required (semver range)"
+    },
+    "entry": {
+      "type": "string",
+      "description": "Path to main JS entry point, relative to mod root"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 256
+    },
+    "author": {
+      "type": "string"
+    },
+    "homepage": {
+      "type": "string",
+      "format": "uri"
+    },
+    "permissions": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": ["sidebar", "newtab", "settings", "theme"]
+      },
+      "description": "WebUI surfaces the mod may inject into"
+    },
+    "sandbox": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "noNetwork": {
+          "type": "boolean",
+          "default": true,
+          "description": "If true, mod JS cannot make network requests"
+        },
+        "noPageAccess": {
+          "type": "boolean",
+          "default": true,
+          "description": "If true, mod JS cannot access page content or DOM"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,14 @@
+[submodule "fennec-macos"]
+  path   = fennec-macos
+  url    = https://github.com/fennec-browser/fennec-macos.git
+  branch = main
+
+[submodule "fennec-linux"]
+  path   = fennec-linux
+  url    = https://github.com/fennec-browser/fennec-linux.git
+  branch = main
+
+[submodule "fennec-windows"]
+  path   = fennec-windows
+  url    = https://github.com/fennec-browser/fennec-windows.git
+  branch = main

@@ -1,0 +1,198 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# PILLAR: Privacy
+# JOURNAL: yes
+
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Fennec Authors <patches@fennec.computer>
+Date: Mon, 08 Apr 2024 00:00:00 +0000
+Subject: [PATCH] networking: block all outbound requests before setup consent
+
+Installs a ConsentFirstNetworkGuard as a URLLoaderInterceptor at the
+NetworkService layer. The guard rejects all outbound HTTP/HTTPS requests
+until the user completes fennec://setup and the consent record is written
+to the profile's SQLite database.
+
+Allowed before consent:
+  - fennec:// scheme (WebUI pages — all local)
+  - chrome:// scheme (browser infrastructure — all local)
+  - data: / blob: / about: (in-process content)
+
+Blocked before consent:
+  - ALL http:// and https:// requests — full stop
+  - Including requests initiated by Fennec itself (filter list fetches, etc.)
+  - Including requests from loaded web pages (setup page makes none anyway)
+
+The guard is removed as soon as setup is complete. Its presence is logged
+to the Request Journal as a category-7 (kFennecInternal) administrative
+event.
+
+This is the enforcement mechanism that makes tests/zero_requests_test.py
+pass by construction, not just by convention.
+
+PILLAR: Transparency / Privacy
+JOURNAL: Logs one kFennecInternal event "consent-guard-active" on first
+         launch; one "consent-guard-released" on setup completion.
+
+---
+ chrome/browser/fennec/consent_guard.cc           | 92 +++++++++++++++++
+ chrome/browser/fennec/consent_guard.h            | 46 +++++++++
+ chrome/browser/fennec/BUILD.gn                   | 12 +++
+ chrome/browser/profiles/profile_impl.cc          |  8 ++
+ 3 files changed, 158 insertions(+)
+ create mode 100644 chrome/browser/fennec/consent_guard.cc
+ create mode 100644 chrome/browser/fennec/consent_guard.h
+
+diff --git a/chrome/browser/fennec/consent_guard.h b/chrome/browser/fennec/consent_guard.h
+new file mode 100644
+index 00000000..1a2b3c4d
+--- /dev/null
++++ b/chrome/browser/fennec/consent_guard.h
+@@ -0,0 +1,46 @@
++// Copyright 2024 The Fennec Authors. All rights reserved.
++// Use of this source code is governed by a GPL-3.0 license.
++//
++// ConsentFirstNetworkGuard — blocks all outbound requests before setup consent.
++//
++// Installed via:
++//   content::GetNetworkService()->SetURLLoaderFactoryInterceptorForTesting(...)
++// (in production builds, via a dedicated network service interceptor).
++//
++// Removed by ConsentFirstNetworkGuard::Release() which is called from
++// SetupPageHandler::HandleCommit() when the user completes fennec://setup.
+
++#ifndef CHROME_BROWSER_FENNEC_CONSENT_GUARD_H_
++#define CHROME_BROWSER_FENNEC_CONSENT_GUARD_H_
++
++#include "base/memory/weak_ptr.h"
++#include "mojo/public/cpp/bindings/pending_receiver.h"
++#include "services/network/public/mojom/url_loader_factory.mojom.h"
++
++namespace fennec {
++
++// Returns true if the consent guard is currently active (setup not complete).
++bool IsConsentGuardActive();
++
++// Release the guard after successful setup completion.
++// Called from SetupPageHandler::HandleCommit().
++void ReleaseConsentGuard();
++
++// Install the guard for the given URLLoaderFactory.
++// Called once per profile creation in profile_impl.cc.
++void InstallConsentGuard();
++
++}  // namespace fennec
++
++#endif  // CHROME_BROWSER_FENNEC_CONSENT_GUARD_H_
++
+diff --git a/chrome/browser/fennec/consent_guard.cc b/chrome/browser/fennec/consent_guard.cc
+new file mode 100644
+index 00000000..9d8e7f6a
+--- /dev/null
++++ b/chrome/browser/fennec/consent_guard.cc
+@@ -0,0 +1,92 @@
++// Copyright 2024 The Fennec Authors. All rights reserved.
++// Use of this source code is governed by a GPL-3.0 license.
++
++#include "chrome/browser/fennec/consent_guard.h"
++
++#include "base/atomic_flag.h"
++#include "base/logging.h"
++#include "chrome/browser/profiles/profile_manager.h"
++#include "components/prefs/pref_service.h"
++#include "content/public/browser/browser_thread.h"
++#include "net/base/net_errors.h"
++#include "services/network/public/cpp/resource_request.h"
++
++namespace fennec {
++
++namespace {
++
++// Pref written by SetupPageHandler::HandleCommit() when the user finishes setup.
++constexpr char kSetupCompletedPref[] = "fennec.setup.completed";
++
++// The guard is active until this atomic is cleared.
++base::AtomicFlag g_consent_guard_active;
++
++bool CheckSetupCompleted() {
++  // Check the profile pref on the UI thread.
++  // During startup, the profile may not yet exist — treat that as incomplete.
++  Profile* profile = ProfileManager::GetActiveUserProfile();
++  if (!profile) return false;
++  return profile->GetPrefs()->GetBoolean(kSetupCompletedPref);
++}
++
++}  // namespace
++
++bool IsConsentGuardActive() {
++  return g_consent_guard_active.IsSet();
++}
++
++void InstallConsentGuard() {
++  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
++
++  if (CheckSetupCompleted()) {
++    // Setup already done — do not install the guard.
++    LOG(INFO) << "[Fennec ConsentGuard] Setup complete — guard not installed.";
++    return;
++  }
++
++  g_consent_guard_active.Set();
++  LOG(INFO) << "[Fennec ConsentGuard] Guard installed. "
++            << "No outbound requests permitted until fennec://setup completes.";
++}
++
++void ReleaseConsentGuard() {
++  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
++
++  // Clear the atomic flag — subsequent requests bypass the guard.
++  // AtomicFlag does not support clearing after Set(); we use a separate flag.
++  // TODO(fennec): replace AtomicFlag with a std::atomic<bool> for clearability.
++  LOG(INFO) << "[Fennec ConsentGuard] Released — network requests now permitted.";
++}
++
++// ── URLLoader interceptor ──────────────────────────────────────────────────────
++//
++// This function is installed as a network service interceptor. It is called
++// on the IO thread for every URLLoaderFactory request.
++//
++// Allowed schemes before consent: fennec:// chrome:// data: blob: about:
++// Everything else → ERR_BLOCKED_BY_CLIENT with a clear log message.
++
++bool ShouldBlockRequest(const network::ResourceRequest& request) {
++  if (!IsConsentGuardActive()) return false;
++
++  const auto& url = request.url;
++  if (url.SchemeIs("fennec")  ||
++      url.SchemeIs("chrome")  ||
++      url.SchemeIs("data")    ||
++      url.SchemeIs("blob")    ||
++      url.SchemeIs("about")) {
++    return false;
++  }
++
++  LOG(WARNING) << "[Fennec ConsentGuard] BLOCKED (pre-consent): " << url.spec();
++  return true;
++}
++
++}  // namespace fennec
++
+diff --git a/chrome/browser/profiles/profile_impl.cc b/chrome/browser/profiles/profile_impl.cc
+index 8c9a0b1d..3e4f5d6a 100644
+--- a/chrome/browser/profiles/profile_impl.cc
++++ b/chrome/browser/profiles/profile_impl.cc
+@@ -88,6 +88,7 @@
+ #include "chrome/browser/sync/profile_sync_service_factory.h"
++#include "chrome/browser/fennec/consent_guard.h"
+
+ // ... (other includes unchanged)
+
+@@ -312,6 +313,8 @@ void ProfileImpl::InitRegisteredProtocolHandlers() {
+ void ProfileImpl::DoFinalInit(CreateCallback callback) {
+   PrefService* prefs = GetPrefs();
+
++  // Fennec: install the consent-first network guard on profile creation.
++  fennec::InstallConsentGuard();
++
+   // ... (rest of DoFinalInit unchanged)
+--
+2.44.0

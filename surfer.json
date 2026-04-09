@@ -1,0 +1,108 @@
+{
+  "_comment": "fennec-surfer build configuration. Edit channel blocks to update versions or branding.",
+
+  "chromium": {
+    "version": "124.0.6367.201",
+    "ungoogled_revision": "124.0.6367.201-1",
+    "source": "https://commondatastorage.googleapis.com/chromium-browser-official/chromium-{{version}}.tar.xz"
+  },
+
+  "channels": {
+    "release": {
+      "name": "Fennec",
+      "version": "1.0.0",
+      "channel": "stable",
+      "updateUrl": "https://updates.fennec.computer/release",
+      "branding": {
+        "productName": "Fennec",
+        "companyName": "Fennec Browser Project",
+        "appId": "computer.fennec.browser",
+        "tagline": "Small ears. Big awareness.",
+        "homepage": "https://fennec.computer",
+        "newTabUrl": "fennec://newtab",
+        "settingsUrl": "fennec://settings",
+        "setupUrl": "fennec://setup"
+      },
+      "icons": {
+        "linux":   "branding/icons/fennec-256.png",
+        "macos":   "branding/icons/fennec.icns",
+        "windows": "branding/icons/fennec.ico"
+      }
+    },
+
+    "nightly": {
+      "name": "Fennec Nightly",
+      "version": "1.0.0-nightly",
+      "channel": "nightly",
+      "updateUrl": "https://updates.fennec.computer/nightly",
+      "branding": {
+        "productName": "Fennec Nightly",
+        "companyName": "Fennec Browser Project",
+        "appId": "computer.fennec.browser.nightly",
+        "tagline": "Small ears. Big awareness. (Nightly)",
+        "homepage": "https://fennec.computer",
+        "newTabUrl": "fennec://newtab",
+        "settingsUrl": "fennec://settings",
+        "setupUrl": "fennec://setup"
+      },
+      "icons": {
+        "linux":   "branding/icons/fennec-nightly-256.png",
+        "macos":   "branding/icons/fennec-nightly.icns",
+        "windows": "branding/icons/fennec-nightly.ico"
+      }
+    }
+  },
+
+  "patches": {
+    "seriesFile": "patches/series",
+    "coreDir": "patches/core",
+    "vendorDir": "patches/vendor/fennec",
+    "validateOnApply": true
+  },
+
+  "build": {
+    "gnArgs": {
+      "is_component_build": false,
+      "is_official_build": true,
+      "symbol_level": 0,
+      "enable_nacl": false,
+      "enable_widevine": false,
+      "use_official_google_api_keys": false,
+      "google_api_key": "\"no\"",
+      "google_default_client_id": "\"no\"",
+      "google_default_client_secret": "\"no\"",
+      "safe_browsing_mode": 0,
+      "enable_reporting": false,
+      "enable_background_mode": false
+    },
+    "platformOverrides": {
+      "macos": {
+        "target_os": "mac",
+        "mac_deployment_target": "\"11.0\"",
+        "use_lld": false
+      },
+      "linux": {
+        "target_os": "linux",
+        "use_sysroot": true,
+        "use_lld": true
+      },
+      "windows": {
+        "target_os": "win",
+        "use_lld": true,
+        "win_linker_timing": false
+      }
+    }
+  },
+
+  "package": {
+    "macos":   { "type": "dmg",      "signingIdentity": "FENNEC_MACOS_CERT" },
+    "linux":   { "type": "appimage", "arch": ["x86_64", "aarch64"] },
+    "windows": { "type": "nsis",     "signingCert": "FENNEC_WIN_CERT" }
+  },
+
+  "devutils": {
+    "domainSubstitution": "devutils/domain_substitution.py",
+    "binaryPruning":      "devutils/binary_pruning.py",
+    "validatePatches":    "devutils/validate_patches.py"
+  }
+}

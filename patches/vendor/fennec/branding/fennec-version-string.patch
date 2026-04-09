@@ -1,0 +1,114 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# PILLAR: Transparency
+# JOURNAL: no
+
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Fennec Authors <patches@fennec.computer>
+Date: Mon, 08 Apr 2024 00:00:00 +0000
+Subject: [PATCH] branding: add Fennec version constants and build metadata
+
+Introduces FENNEC_VERSION and FENNEC_CHANNEL constants, built from GN
+args injected by fennec-surfer. These are used by the about page and
+the update mechanism.
+
+The CHROMIUM_VERSION constant is intentionally kept private (not
+exposed in any user-visible string) — it is used only internally
+for compatibility checks.
+
+PILLAR: Branding / Transparency
+JOURNAL: none
+
+---
+ chrome/browser/fennec/fennec_version.h | 47 ++++++++++++++++++++++++
+ chrome/browser/fennec/BUILD.gn         | 19 ++++++++++
+ 2 files changed, 66 insertions(+)
+ create mode 100644 chrome/browser/fennec/fennec_version.h
+ create mode 100644 chrome/browser/fennec/BUILD.gn
+
+diff --git a/chrome/browser/fennec/BUILD.gn b/chrome/browser/fennec/BUILD.gn
+new file mode 100644
+index 00000000..1a2b3c4d
+--- /dev/null
++++ b/chrome/browser/fennec/BUILD.gn
+@@ -0,0 +1,19 @@
++# Copyright 2024 The Fennec Authors. All rights reserved.
++# Use of this source code is governed by a GPL-3.0 license.
++
++import("//build/config/chrome_build.gni")
++
++declare_args() {
++  fennec_product_name = "Fennec"
++  fennec_version      = "1.0.0"
++  fennec_channel      = "release"
++  fennec_update_url   = "https://updates.fennec.computer/release"
++  fennec_homepage_url = "https://fennec.computer"
++  fennec_new_tab_url  = "fennec://newtab"
++  fennec_settings_url = "fennec://settings"
++  fennec_setup_url    = "fennec://setup"
++}
++
++source_set("fennec_version") {
++  sources = [ "fennec_version.h" ]
++}
++
+diff --git a/chrome/browser/fennec/fennec_version.h b/chrome/browser/fennec/fennec_version.h
+new file mode 100644
+index 00000000..2c3d4e5f
+--- /dev/null
++++ b/chrome/browser/fennec/fennec_version.h
+@@ -0,0 +1,47 @@
++// Copyright 2024 The Fennec Authors. All rights reserved.
++// Use of this source code is governed by a GPL-3.0 license that can be
++// found in the LICENSE file.
++//
++// fennec_version.h — Build-time Fennec version constants
++//
++// All values are injected from GN args set by fennec-surfer:
++//   fennec_product_name, fennec_version, fennec_channel, etc.
++// See chrome/browser/fennec/BUILD.gn for the declare_args() block.
++
++#ifndef CHROME_BROWSER_FENNEC_FENNEC_VERSION_H_
++#define CHROME_BROWSER_FENNEC_FENNEC_VERSION_H_
++
++// Product name shown in UI ("Fennec" or "Fennec Nightly").
++// Injected from GN: fennec_product_name
++#ifndef FENNEC_PRODUCT_NAME
++#define FENNEC_PRODUCT_NAME "Fennec"
++#endif
++
++// Fennec version string (semantic version, e.g. "1.0.0").
++// Injected from GN: fennec_version
++#ifndef FENNEC_VERSION
++#define FENNEC_VERSION "1.0.0"
++#endif
++
++// Release channel: "release" or "nightly".
++// Injected from GN: fennec_channel
++#ifndef FENNEC_CHANNEL
++#define FENNEC_CHANNEL "release"
++#endif
++
++// Update endpoint URL.
++// Injected from GN: fennec_update_url
++#ifndef FENNEC_UPDATE_URL
++#define FENNEC_UPDATE_URL "https://updates.fennec.computer/release"
++#endif
++
++// Homepage URL.
++#ifndef FENNEC_HOMEPAGE_URL
++#define FENNEC_HOMEPAGE_URL "https://fennec.computer"
++#endif
++
++// New Tab URL (served as a fennec:// WebUI page).
++#ifndef FENNEC_NEW_TAB_URL
++#define FENNEC_NEW_TAB_URL "fennec://newtab"
++#endif
++
++// Build timestamp injected at compile time by GN writefile() action.
++// See chrome/browser/fennec/BUILD.gn.
++extern const char kFennecBuildDate[];
++
++#endif  // CHROME_BROWSER_FENNEC_FENNEC_VERSION_H_
++
+--
+2.44.0

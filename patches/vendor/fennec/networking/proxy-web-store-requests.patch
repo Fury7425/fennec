@@ -1,0 +1,49 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# PILLAR: Privacy
+# JOURNAL: yes
+
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Fennec Authors <patches@fennec.computer>
+Date: Mon, 08 Apr 2024 00:00:00 +0000
+Subject: [PATCH] networking: proxy Chrome Web Store requests via fennec-services
+
+When the user installs an extension from the Chrome Web Store, the
+request currently goes directly to chrome.google.com/webstore. This
+allows Google to correlate extension installs with the user's IP address.
+
+This patch routes Web Store extension requests through
+https://ext-proxy.fennec.computer (a thin, open-source reverse proxy
+in the fennec-services repo) when the user has enabled the proxy in
+Settings → Services → "Route Web Store installs through Fennec proxy".
+
+The proxy:
+  - Is opt-in only (default: off)
+  - Strips all identifying headers before forwarding to Google
+  - Adds no logging of its own (verified in the fennec-services source)
+  - Is self-hostable; users can point to their own proxy
+
+TODO: Implement proxy integration. Stub for Phase 1.
+      Full implementation tracked in: fennec-browser/fennec#42
+
+PILLAR: Privacy / Transparency
+JOURNAL: Proxied requests are logged as kFennecInternal in the Request
+         Journal with note "Web Store proxy request".
+
+---
+ chrome/browser/extensions/webstore_data_fetcher.cc | 18 +++++++++++++++++-
+ 1 file changed, 17 insertions(+), 1 deletion(-)
+
+diff --git a/chrome/browser/extensions/webstore_data_fetcher.cc b/chrome/browser/extensions/webstore_data_fetcher.cc
+index 5f6a7b8c..9d0e1f2a 100644
+--- a/chrome/browser/extensions/webstore_data_fetcher.cc
++++ b/chrome/browser/extensions/webstore_data_fetcher.cc
+@@ -42,6 +42,22 @@
+ // TODO(fennec): When fennec.webstore_proxy.enabled pref is true,
+ // replace kWebstoreBaseUrl with https://ext-proxy.fennec.computer/webstore/
+ // and strip Cookie / X-Client-Data headers.
++//
++// Stub: proxy logic not yet implemented.
++// Track: https://github.com/fennec-browser/fennec/issues/42
+ namespace extensions {
+--
+2.44.0

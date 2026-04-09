@@ -1,0 +1,48 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# PILLAR: Privacy
+# JOURNAL: no
+
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Fennec Authors <patches@fennec.computer>
+Date: Mon, 08 Apr 2024 00:00:00 +0000
+Subject: [PATCH] privacy: enable WebRTC IP leak protection by default
+
+WebRTC can expose a user's real local IP address even when behind a VPN
+by enumerating network interfaces during ICE candidate gathering. This
+patch sets the default WebRTC IP handling policy to
+DISABLE_NON_PROXIED_UDP, which forces all WebRTC traffic through any
+configured proxy and suppresses local IP candidates.
+
+This may affect peer-to-peer connections (video calls, gaming) that
+rely on direct LAN routing. Users can relax it via:
+  Settings → Privacy → WebRTC IP handling policy
+
+Chromium default: DEFAULT (exposes all IPs)
+Fennec default:   DISABLE_NON_PROXIED_UDP
+
+PILLAR: Privacy
+JOURNAL: none
+
+---
+ chrome/browser/profiles/profile_impl.cc | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/chrome/browser/profiles/profile_impl.cc b/chrome/browser/profiles/profile_impl.cc
+index 2c3d4e5f..7a8b9c0d 100644
+--- a/chrome/browser/profiles/profile_impl.cc
++++ b/chrome/browser/profiles/profile_impl.cc
+@@ -425,6 +425,14 @@ void ProfileImpl::RegisterProfilePrefs(
++  // Fennec: set WebRTC IP handling to DISABLE_NON_PROXIED_UDP by default.
++  // Chromium stores this as an integer matching
++  // blink::mojom::WebRTCIPHandlingPolicy enum.
++  //   0 = DEFAULT (exposes all IPs)
++  //   1 = DEFAULT_PUBLIC_AND_PRIVATE_INTERFACES
++  //   2 = DEFAULT_PUBLIC_INTERFACE_ONLY
++  //   3 = DISABLE_NON_PROXIED_UDP  ← Fennec default
++  registry->RegisterIntegerPref(
++      prefs::kWebRTCIPHandlingPolicy,
++      3,  // DISABLE_NON_PROXIED_UDP
++      user_prefs::PrefRegistrySyncable::SYNCABLE_PREF);
+ }
+--
+2.44.0

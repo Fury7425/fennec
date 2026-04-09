@@ -1,0 +1,48 @@
+GNU GENERAL PUBLIC LICENSE
+Version 3, 29 June 2007
+
+Copyright (C) 2024 The Fennec Authors
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+─────────────────────────────────────────────────────────────────────────────
+THIRD-PARTY COMPONENTS
+─────────────────────────────────────────────────────────────────────────────
+
+Chromium
+  License: BSD 3-Clause
+  https://chromium.googlesource.com/chromium/src/+/main/LICENSE
+
+ungoogled-chromium patches
+  License: BSD 3-Clause
+  https://github.com/ungoogled-software/ungoogled-chromium/blob/master/LICENSE
+
+Iridium browser patches
+  License: BSD 3-Clause / MIT (per patch)
+  https://github.com/iridium-browser/iridium-browser
+
+uBlock Origin (component extension)
+  License: GPL-3.0
+  https://github.com/gorhill/uBlock/blob/master/LICENSE.txt
+
+React
+  License: MIT
+  https://github.com/facebook/react/blob/main/LICENSE
+
+Tailwind CSS
+  License: MIT
+  https://github.com/tailwindlabs/tailwindcss/blob/master/LICENSE
+
+Full license texts for all third-party components are included in the
+LICENSES/ directory of this repository and in the distributed binary.

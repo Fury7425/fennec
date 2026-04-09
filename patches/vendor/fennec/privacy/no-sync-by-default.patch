@@ -1,0 +1,62 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# PILLAR: Privacy
+# JOURNAL: no
+
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Fennec Authors <patches@fennec.computer>
+Date: Mon, 08 Apr 2024 00:00:00 +0000
+Subject: [PATCH] privacy: disable cloud sync by default
+
+Ensures profile sync is disabled by default and that no sync-related
+network calls are made unless the user explicitly configures a sync
+server in Settings → Services → Profile sync.
+
+ungoogled-chromium already removes the Google Sync backend. This patch:
+  1. Sets the sync pref default to disabled
+  2. Ensures SyncServiceImpl never starts without an explicit server URL
+  3. Removes the "Sign in to sync" UI entry points that ungoogled-chromium
+     may leave behind
+
+Fennec's own sync (future) uses a self-hosted server configurable in
+fennec://setup → Services → Profile sync.
+
+PILLAR: Privacy / Transparency
+JOURNAL: If sync is enabled by the user, sync requests are logged as
+         kFennecInternal in the Request Journal.
+
+---
+ chrome/browser/sync/sync_service_factory.cc | 10 ++++++++++
+ chrome/browser/profiles/profile_impl.cc     |  5 +++++
+ 2 files changed, 15 insertions(+)
+
+diff --git a/chrome/browser/profiles/profile_impl.cc b/chrome/browser/profiles/profile_impl.cc
+index 5b6c7d8e..6c7d8e9f 100644
+--- a/chrome/browser/profiles/profile_impl.cc
++++ b/chrome/browser/profiles/profile_impl.cc
+@@ -445,6 +445,11 @@ void ProfileImpl::RegisterProfilePrefs(
++  // Fennec: disable sync by default. syncer::kSyncRequested default is false.
++  // SyncServiceImpl will refuse to start unless both this pref is true AND
++  // a valid fennec.sync.server_url pref is set.
++  registry->RegisterBooleanPref(syncer::prefs::kSyncRequested, false);
++  registry->RegisterStringPref("fennec.sync.server_url", "");
+ }
+
+diff --git a/chrome/browser/sync/sync_service_factory.cc b/chrome/browser/sync/sync_service_factory.cc
+index 6e7f8a9b..0c1d2e3f 100644
+--- a/chrome/browser/sync/sync_service_factory.cc
++++ b/chrome/browser/sync/sync_service_factory.cc
+@@ -85,6 +85,16 @@ KeyedService* SyncServiceFactory::BuildServiceInstanceFor(
+   // Fennec: refuse to start sync unless a server URL is configured.
++  PrefService* prefs = profile->GetPrefs();
++  const std::string server_url =
++      prefs->GetString("fennec.sync.server_url");
++  if (server_url.empty()) {
++    LOG(INFO) << "[Fennec Sync] No sync server configured — sync disabled.";
++    return nullptr;
++  }
++  LOG(INFO) << "[Fennec Sync] Starting sync to: " << server_url;
++
+   return syncer::SyncServiceImpl::Create(std::move(init_params));
+ }
+--
+2.44.0

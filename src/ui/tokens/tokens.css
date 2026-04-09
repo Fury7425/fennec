@@ -1,0 +1,374 @@
+/* =============================================================================
+   Fennec Browser — Design Token System
+   src/ui/tokens/tokens.css
+   All custom properties prefixed with --fnc-
+   "Small ears. Big awareness." — every token maps to a user-facing theme option
+   ============================================================================= */
+
+:root {
+
+  /* ---------------------------------------------------------------------------
+     1. BASE COLOR PALETTE
+     Raw color values — not for direct use; reference via semantic tokens below
+     --------------------------------------------------------------------------- */
+  --fnc-color-fox-50:  #fff8f0;
+  --fnc-color-fox-100: #ffecd3;
+  --fnc-color-fox-200: #ffd3a0;
+  --fnc-color-fox-300: #ffb56a;
+  --fnc-color-fox-400: #ff9533;
+  --fnc-color-fox-500: #e8780f;
+  --fnc-color-fox-600: #c4620a;
+  --fnc-color-fox-700: #9e4e07;
+  --fnc-color-fox-800: #7a3c05;
+  --fnc-color-fox-900: #572a03;
+
+  --fnc-color-sand-50:  #fdfaf5;
+  --fnc-color-sand-100: #f8f1e3;
+  --fnc-color-sand-200: #efe0c0;
+  --fnc-color-sand-300: #e2c98e;
+  --fnc-color-sand-400: #d4ae5e;
+  --fnc-color-sand-500: #c09438;
+  --fnc-color-sand-600: #9e7828;
+  --fnc-color-sand-700: #7d5e1c;
+  --fnc-color-sand-800: #5d4512;
+  --fnc-color-sand-900: #3e2e0b;
+
+  --fnc-color-slate-0:   #ffffff;
+  --fnc-color-slate-50:  #f8f9fa;
+  --fnc-color-slate-100: #f0f1f3;
+  --fnc-color-slate-200: #e2e4e8;
+  --fnc-color-slate-300: #cdd0d7;
+  --fnc-color-slate-400: #9fa5b0;
+  --fnc-color-slate-500: #6e7583;
+  --fnc-color-slate-600: #4e5460;
+  --fnc-color-slate-700: #363b46;
+  --fnc-color-slate-800: #21252e;
+  --fnc-color-slate-900: #13161c;
+  --fnc-color-slate-950: #0a0c10;
+
+  --fnc-color-green-400: #4caf7d;
+  --fnc-color-green-500: #339966;
+  --fnc-color-red-400:   #e05555;
+  --fnc-color-red-500:   #c43c3c;
+  --fnc-color-blue-400:  #4a90d9;
+  --fnc-color-blue-500:  #2d73b8;
+  --fnc-color-yellow-400: #e8c23a;
+  --fnc-color-yellow-500: #c9a120;
+
+  /* ---------------------------------------------------------------------------
+     2. SURFACE TOKENS
+     Layered surfaces: base → raised → overlay
+     --------------------------------------------------------------------------- */
+  --fnc-surface-base:       var(--fnc-color-slate-50);
+  --fnc-surface-raised:     var(--fnc-color-slate-0);
+  --fnc-surface-overlay:    var(--fnc-color-slate-0);
+  --fnc-surface-sunken:     var(--fnc-color-slate-100);
+  --fnc-surface-sidebar:    var(--fnc-color-slate-100);
+  --fnc-surface-toolbar:    var(--fnc-color-slate-0);
+  --fnc-surface-input:      var(--fnc-color-slate-0);
+  --fnc-surface-tooltip:    var(--fnc-color-slate-800);
+  --fnc-surface-modal-scrim: rgba(0, 0, 0, 0.38);
+
+  /* Dark mode surfaces */
+  --fnc-surface-base-dark:     var(--fnc-color-slate-900);
+  --fnc-surface-raised-dark:   var(--fnc-color-slate-800);
+  --fnc-surface-overlay-dark:  var(--fnc-color-slate-800);
+  --fnc-surface-sunken-dark:   var(--fnc-color-slate-950);
+  --fnc-surface-sidebar-dark:  var(--fnc-color-slate-900);
+  --fnc-surface-toolbar-dark:  var(--fnc-color-slate-900);
+  --fnc-surface-input-dark:    var(--fnc-color-slate-800);
+  --fnc-surface-tooltip-dark:  var(--fnc-color-slate-700);
+
+  /* ---------------------------------------------------------------------------
+     3. TEXT TOKENS
+     --------------------------------------------------------------------------- */
+  --fnc-text-primary:    var(--fnc-color-slate-900);
+  --fnc-text-secondary:  var(--fnc-color-slate-600);
+  --fnc-text-tertiary:   var(--fnc-color-slate-400);
+  --fnc-text-disabled:   var(--fnc-color-slate-300);
+  --fnc-text-inverse:    var(--fnc-color-slate-0);
+  --fnc-text-accent:     var(--fnc-color-fox-500);
+  --fnc-text-success:    var(--fnc-color-green-500);
+  --fnc-text-warning:    var(--fnc-color-yellow-500);
+  --fnc-text-danger:     var(--fnc-color-red-500);
+  --fnc-text-link:       var(--fnc-color-blue-500);
+  --fnc-text-link-hover: var(--fnc-color-blue-400);
+
+  /* Dark mode text */
+  --fnc-text-primary-dark:   var(--fnc-color-slate-50);
+  --fnc-text-secondary-dark: var(--fnc-color-slate-400);
+  --fnc-text-tertiary-dark:  var(--fnc-color-slate-500);
+  --fnc-text-disabled-dark:  var(--fnc-color-slate-600);
+
+  /* ---------------------------------------------------------------------------
+     4. BORDER TOKENS
+     --------------------------------------------------------------------------- */
+  --fnc-border-subtle:   var(--fnc-color-slate-200);
+  --fnc-border-default:  var(--fnc-color-slate-300);
+  --fnc-border-strong:   var(--fnc-color-slate-400);
+  --fnc-border-accent:   var(--fnc-color-fox-400);
+  --fnc-border-focus:    var(--fnc-color-fox-500);
+  --fnc-border-danger:   var(--fnc-color-red-400);
+  --fnc-border-width:    1px;
+  --fnc-border-width-2:  2px;
+
+  /* Dark mode borders */
+  --fnc-border-subtle-dark:  var(--fnc-color-slate-800);
+  --fnc-border-default-dark: var(--fnc-color-slate-700);
+  --fnc-border-strong-dark:  var(--fnc-color-slate-600);
+
+  /* ---------------------------------------------------------------------------
+     5. ACCENT / BRAND COLOR
+     User-configurable; defaults to fox orange
+     --------------------------------------------------------------------------- */
+  --fnc-accent:          var(--fnc-color-fox-500);
+  --fnc-accent-hover:    var(--fnc-color-fox-600);
+  --fnc-accent-active:   var(--fnc-color-fox-700);
+  --fnc-accent-subtle:   var(--fnc-color-fox-50);
+  --fnc-accent-on:       var(--fnc-color-slate-0);
+
+  /* ---------------------------------------------------------------------------
+     6. SPACING — 4px base grid
+     --------------------------------------------------------------------------- */
+  --fnc-space-0:   0px;
+  --fnc-space-1:   4px;
+  --fnc-space-2:   8px;
+  --fnc-space-3:   12px;
+  --fnc-space-4:   16px;
+  --fnc-space-5:   20px;
+  --fnc-space-6:   24px;
+  --fnc-space-8:   32px;
+  --fnc-space-10:  40px;
+  --fnc-space-12:  48px;
+  --fnc-space-16:  64px;
+  --fnc-space-20:  80px;
+  --fnc-space-24:  96px;
+  --fnc-space-32: 128px;
+
+  /* ---------------------------------------------------------------------------
+     7. TYPOGRAPHY
+     --------------------------------------------------------------------------- */
+  /* Font families */
+  --fnc-font-sans:   system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --fnc-font-mono:   "JetBrains Mono", "Fira Code", "Cascadia Code", "Consolas", monospace;
+  --fnc-font-brand:  var(--fnc-font-sans);
+
+  /* Font sizes */
+  --fnc-text-2xs:  10px;
+  --fnc-text-xs:   11px;
+  --fnc-text-sm:   13px;
+  --fnc-text-base: 14px;
+  --fnc-text-md:   15px;
+  --fnc-text-lg:   17px;
+  --fnc-text-xl:   20px;
+  --fnc-text-2xl:  24px;
+  --fnc-text-3xl:  30px;
+  --fnc-text-4xl:  36px;
+  --fnc-text-5xl:  48px;
+
+  /* Font weights */
+  --fnc-weight-regular:   400;
+  --fnc-weight-medium:    500;
+  --fnc-weight-semibold:  600;
+  --fnc-weight-bold:      700;
+
+  /* Line heights */
+  --fnc-leading-tight:    1.2;
+  --fnc-leading-snug:     1.35;
+  --fnc-leading-normal:   1.5;
+  --fnc-leading-relaxed:  1.65;
+  --fnc-leading-loose:    2.0;
+
+  /* Letter spacing */
+  --fnc-tracking-tight:   -0.02em;
+  --fnc-tracking-normal:   0em;
+  --fnc-tracking-wide:     0.04em;
+  --fnc-tracking-widest:   0.1em;
+
+  /* ---------------------------------------------------------------------------
+     8. BORDER RADIUS
+     --------------------------------------------------------------------------- */
+  --fnc-radius-none:  0px;
+  --fnc-radius-xs:    2px;
+  --fnc-radius-sm:    4px;
+  --fnc-radius-md:    6px;
+  --fnc-radius-lg:    8px;
+  --fnc-radius-xl:    12px;
+  --fnc-radius-2xl:   16px;
+  --fnc-radius-3xl:   24px;
+  --fnc-radius-full:  9999px;
+
+  /* ---------------------------------------------------------------------------
+     9. SHADOW
+     --------------------------------------------------------------------------- */
+  --fnc-shadow-none:   none;
+  --fnc-shadow-xs:     0 1px 2px rgba(0, 0, 0, 0.06);
+  --fnc-shadow-sm:     0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.06);
+  --fnc-shadow-md:     0 4px 6px rgba(0, 0, 0, 0.07), 0 2px 4px rgba(0, 0, 0, 0.06);
+  --fnc-shadow-lg:     0 10px 15px rgba(0, 0, 0, 0.08), 0 4px 6px rgba(0, 0, 0, 0.05);
+  --fnc-shadow-xl:     0 20px 25px rgba(0, 0, 0, 0.10), 0 10px 10px rgba(0, 0, 0, 0.04);
+  --fnc-shadow-2xl:    0 25px 50px rgba(0, 0, 0, 0.18);
+  --fnc-shadow-inner:  inset 0 2px 4px rgba(0, 0, 0, 0.06);
+  --fnc-shadow-focus:  0 0 0 3px rgba(232, 120, 15, 0.35);
+  --fnc-shadow-glance: 0 32px 64px rgba(0, 0, 0, 0.22), 0 8px 24px rgba(0, 0, 0, 0.12);
+
+  /* ---------------------------------------------------------------------------
+     10. ANIMATION — DURATION & EASING
+     "Calm desert presence" — smooth but never sluggish
+     --------------------------------------------------------------------------- */
+  /* Durations */
+  --fnc-duration-instant:  0ms;
+  --fnc-duration-fast:     80ms;
+  --fnc-duration-quick:    140ms;
+  --fnc-duration-normal:   200ms;
+  --fnc-duration-gentle:   280ms;
+  --fnc-duration-slow:     400ms;
+  --fnc-duration-sluggish: 600ms;
+  --fnc-duration-ear:      350ms; /* sidebar ear expand animation */
+
+  /* Easing */
+  --fnc-ease-linear:    linear;
+  --fnc-ease-in:        cubic-bezier(0.4, 0, 1, 1);
+  --fnc-ease-out:       cubic-bezier(0, 0, 0.2, 1);
+  --fnc-ease-in-out:    cubic-bezier(0.4, 0, 0.2, 1);
+  --fnc-ease-spring:    cubic-bezier(0.34, 1.56, 0.64, 1);
+  --fnc-ease-calm:      cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --fnc-ease-overshoot: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
+  /* ---------------------------------------------------------------------------
+     11. SIDEBAR DIMENSIONS
+     The fennec ear — tall, narrow, always listening
+     --------------------------------------------------------------------------- */
+  --fnc-sidebar-width-collapsed:   48px;
+  --fnc-sidebar-width-expanded:   240px;
+  --fnc-sidebar-width-wide:       280px;
+  --fnc-sidebar-tab-height:        36px;
+  --fnc-sidebar-tab-height-sm:     32px;
+  --fnc-sidebar-icon-size:         18px;
+  --fnc-sidebar-favicon-size:      14px;
+  --fnc-sidebar-pin-area-height:   64px;
+  --fnc-sidebar-header-height:     48px;
+  --fnc-toolbar-height:            44px;
+  --fnc-addressbar-width-normal:  480px;
+  --fnc-addressbar-width-focused: 680px;
+  --fnc-addressbar-height:         32px;
+
+  /* ---------------------------------------------------------------------------
+     12. WORKSPACE CHIP COLORS
+     Named color slots for workspace tinting
+     --------------------------------------------------------------------------- */
+  --fnc-workspace-red:     #e05555;
+  --fnc-workspace-orange:  #e8780f;
+  --fnc-workspace-amber:   #e8c23a;
+  --fnc-workspace-green:   #4caf7d;
+  --fnc-workspace-teal:    #2aa0a0;
+  --fnc-workspace-blue:    #4a90d9;
+  --fnc-workspace-violet:  #7c5cbf;
+  --fnc-workspace-pink:    #d95b8a;
+  --fnc-workspace-slate:   var(--fnc-color-slate-500);
+  --fnc-workspace-sand:    var(--fnc-color-sand-500);
+
+  /* Workspace tint applies to browser chrome surfaces */
+  --fnc-workspace-tint:    transparent; /* overridden per workspace */
+  --fnc-workspace-tint-strength: 0.06;
+
+  /* ---------------------------------------------------------------------------
+     13. TRANSPARENCY / OPACITY VALUES
+     --------------------------------------------------------------------------- */
+  --fnc-opacity-0:         0;
+  --fnc-opacity-disabled:  0.38;
+  --fnc-opacity-muted:     0.54;
+  --fnc-opacity-secondary: 0.72;
+  --fnc-opacity-high:      0.87;
+  --fnc-opacity-full:      1;
+
+  /* Blur (backdrop-filter) */
+  --fnc-blur-sm:  blur(4px);
+  --fnc-blur-md:  blur(8px);
+  --fnc-blur-lg:  blur(16px);
+  --fnc-blur-xl:  blur(24px);
+  --fnc-blur-glance: blur(32px);
+
+  /* ---------------------------------------------------------------------------
+     14. Z-INDEX SCALE
+     --------------------------------------------------------------------------- */
+  --fnc-z-below:    -1;
+  --fnc-z-base:      0;
+  --fnc-z-raised:   10;
+  --fnc-z-dropdown: 100;
+  --fnc-z-sticky:   200;
+  --fnc-z-overlay:  300;
+  --fnc-z-modal:    400;
+  --fnc-z-toast:    500;
+  --fnc-z-glance:   600;
+  --fnc-z-tooltip:  700;
+  --fnc-z-top:      9999;
+
+  /* ---------------------------------------------------------------------------
+     15. INTERACTIVE STATES
+     Hover / active / focus overlays
+     --------------------------------------------------------------------------- */
+  --fnc-state-hover:   rgba(0, 0, 0, 0.06);
+  --fnc-state-active:  rgba(0, 0, 0, 0.10);
+  --fnc-state-focus:   rgba(232, 120, 15, 0.15);
+  --fnc-state-selected: rgba(232, 120, 15, 0.10);
+
+  /* Dark mode state overlays */
+  --fnc-state-hover-dark:    rgba(255, 255, 255, 0.08);
+  --fnc-state-active-dark:   rgba(255, 255, 255, 0.12);
+  --fnc-state-selected-dark: rgba(232, 120, 15, 0.20);
+}
+
+/* =============================================================================
+   DARK MODE
+   Applied when <html> has data-theme="dark" or system prefers dark
+   ============================================================================= */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --fnc-surface-base:    var(--fnc-surface-base-dark);
+    --fnc-surface-raised:  var(--fnc-surface-raised-dark);
+    --fnc-surface-overlay: var(--fnc-surface-overlay-dark);
+    --fnc-surface-sunken:  var(--fnc-surface-sunken-dark);
+    --fnc-surface-sidebar: var(--fnc-surface-sidebar-dark);
+    --fnc-surface-toolbar: var(--fnc-surface-toolbar-dark);
+    --fnc-surface-input:   var(--fnc-surface-input-dark);
+    --fnc-surface-tooltip: var(--fnc-surface-tooltip-dark);
+
+    --fnc-text-primary:   var(--fnc-text-primary-dark);
+    --fnc-text-secondary: var(--fnc-text-secondary-dark);
+    --fnc-text-tertiary:  var(--fnc-text-tertiary-dark);
+    --fnc-text-disabled:  var(--fnc-text-disabled-dark);
+
+    --fnc-border-subtle:  var(--fnc-border-subtle-dark);
+    --fnc-border-default: var(--fnc-border-default-dark);
+    --fnc-border-strong:  var(--fnc-border-strong-dark);
+
+    --fnc-state-hover:    var(--fnc-state-hover-dark);
+    --fnc-state-active:   var(--fnc-state-active-dark);
+    --fnc-state-selected: var(--fnc-state-selected-dark);
+  }
+}
+
+[data-theme="dark"] {
+  --fnc-surface-base:    var(--fnc-surface-base-dark);
+  --fnc-surface-raised:  var(--fnc-surface-raised-dark);
+  --fnc-surface-overlay: var(--fnc-surface-overlay-dark);
+  --fnc-surface-sunken:  var(--fnc-surface-sunken-dark);
+  --fnc-surface-sidebar: var(--fnc-surface-sidebar-dark);
+  --fnc-surface-toolbar: var(--fnc-surface-toolbar-dark);
+  --fnc-surface-input:   var(--fnc-surface-input-dark);
+  --fnc-surface-tooltip: var(--fnc-surface-tooltip-dark);
+
+  --fnc-text-primary:   var(--fnc-text-primary-dark);
+  --fnc-text-secondary: var(--fnc-text-secondary-dark);
+  --fnc-text-tertiary:  var(--fnc-text-tertiary-dark);
+  --fnc-text-disabled:  var(--fnc-text-disabled-dark);
+
+  --fnc-border-subtle:  var(--fnc-border-subtle-dark);
+  --fnc-border-default: var(--fnc-border-default-dark);
+  --fnc-border-strong:  var(--fnc-border-strong-dark);
+
+  --fnc-state-hover:    var(--fnc-state-hover-dark);
+  --fnc-state-active:   var(--fnc-state-active-dark);
+  --fnc-state-selected: var(--fnc-state-selected-dark);
+}

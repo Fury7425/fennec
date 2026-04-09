@@ -1,0 +1,47 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# PILLAR: Calm UI
+# JOURNAL: no
+
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Fennec Authors <patches@fennec.computer>
+Date: Mon, 08 Apr 2024 00:00:00 +0000
+Subject: [PATCH] ui: CSS variable theme bridge — native chrome to WebUI
+
+Bridges Fennec CSS design tokens (src/ui/tokens/tokens.css) into the
+native browser chrome (Views layer) so that the C++ UI and the React
+WebUI share a single source of truth for colors, spacing, and animation
+timings.
+
+Implementation:
+  1. FennecThemeService reads token values from the active theme
+     (or user pref overrides written by the Mods system)
+  2. It translates them to SkColor / gfx::Insets for the Views layer
+  3. It also injects a <style> block into each fennec:// WebUI page
+     with the current token values as CSS custom properties
+
+This is what makes workspace chrome tints (--fnc-ws-tint) work: when
+the user switches workspaces, WorkspaceManager calls
+FennecThemeService::SetWorkspaceTint(), which both updates the Views
+chrome background and re-injects --fnc-ws-tint into all open WebUI pages.
+
+TODO: Stub. Full implementation in Phase 2.
+      Tracked: fennec-browser/fennec#17
+
+PILLAR: Calm UI / Customization
+JOURNAL: none
+---
+ chrome/browser/themes/fennec_theme_service.cc | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/chrome/browser/themes/fennec_theme_service.cc b/chrome/browser/themes/fennec_theme_service.cc
+new file mode 100644
+index 0000000..0000001
+--- /dev/null
++++ b/chrome/browser/themes/fennec_theme_service.cc
+@@ -0,0 +1,4 @@
++// TODO(fennec Phase 2): Implement FennecThemeService.
++// - Read --fnc-* tokens from active Mod / user pref
++// - Translate to SkColor for Views layer
++// - Inject CSS variable <style> block into all fennec:// WebUI pages
+--
+2.44.0
