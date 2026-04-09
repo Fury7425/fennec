@@ -1,6 +1,8 @@
 /**
- * platform.ts — Host + target platform detection and path helpers
+ * platform.ts -- Host + target platform detection and path helpers
  */
+
+import { cpus } from 'node:os';
 
 export type TargetPlatform = 'macos' | 'linux' | 'windows';
 export type Channel        = 'release' | 'nightly';
@@ -63,10 +65,5 @@ export function assertChannel(s: string): Channel {
 
 /** Number of logical CPU cores (for Ninja -j) */
 export function cpuCount(): number {
-  // Node >= 18: navigator.hardwareConcurrency is not available in Node.
-  // Use os module.
-  // We import inline so this utility stays side-effect-free at module level.
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const os = require('node:os') as typeof import('node:os');
-  return os.cpus().length;
+  return cpus().length;
 }
