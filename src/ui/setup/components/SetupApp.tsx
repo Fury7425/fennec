@@ -1,37 +1,22 @@
 import React, { useState } from 'react';
 import type { SetupState, SetupStep } from '../types';
 import { WelcomeStep } from './WelcomeStep';
-import { PrivacyStep } from './PrivacyStep';
 import { ServicesStep } from './ServicesStep';
-import { AppearanceStep } from './AppearanceStep';
 import { DoneStep } from './DoneStep';
 
-const STEPS: SetupStep[] = ['welcome', 'privacy', 'services', 'appearance', 'done'];
-
-const STEP_LABELS: Record<SetupStep, string> = {
-  welcome:    'Welcome',
-  privacy:    'Privacy',
-  services:   'Services',
-  appearance: 'Appearance',
-  done:       'Done',
-};
+// Three screens per spec:
+//   1. Welcome  — branding, tagline, two pillars
+//   2. Services — 4 opt-in network-service toggles
+//   3. Done     — summary + "Start browsing"
+const STEPS: SetupStep[] = ['welcome', 'services', 'done'];
 
 const DEFAULT_STATE: SetupState = {
   step: 'welcome',
-  privacy: {
-    blockThirdPartyCookies: true,
-    httpsOnly:              true,
-    webrtcProtection:       true,
-    noPasswordManager:      true,
-  },
   services: {
-    enableSync:    false,
-    syncServerUrl: '',
-    enableUpdates: false,
-  },
-  appearance: {
-    theme:       'system',
-    accentColor: '#e8780f',
+    enableUpdates:      false,
+    enableFilterRefresh: false,
+    enableModsRegistry:  false,
+    enableCwsProxy:      false,
   },
 };
 
@@ -53,8 +38,8 @@ export function SetupApp(): React.ReactElement {
     try {
       window.__fennec?.setup?.commit(state);
     } catch {
-      // No-op: not in browser context (development / preview)
-      console.info('[fennec:setup] commit called (no-op — no Mojo bridge)', state);
+      // Development / preview — no Mojo bridge present.
+      console.info('[fennec:setup] commit (no-op — no bridge)', state);
     }
   }
 
@@ -76,73 +61,69 @@ export function SetupApp(): React.ReactElement {
     borderRadius: 'var(--fnc-radius-2xl)',
     boxShadow:    'var(--fnc-shadow-xl)',
     width:        '100%',
-    maxWidth:     '520px',
+    maxWidth:     '540px',
     overflow:     'hidden',
   };
 
-  const progressBarStyle: React.CSSProperties = {
-    display:         'flex',
-    gap:             'var(--fnc-space-1)',
-    padding:         'var(--fnc-space-4) var(--fnc-space-6) 0',
-    alignItems:      'center',
+  // Step progress dots.
+  const progressStyle: React.CSSProperties = {
+    display:    'flex',
+    gap:        'var(--fnc-space-1)',
+    padding:    'var(--fnc-space-4) var(--fnc-space-6) 0',
+    alignItems: 'center',
   };
 
   return (
     <div style={containerStyle}>
       <div style={cardStyle}>
         {/* Progress indicator */}
-        <div style={progressBarStyle}>
+        <div style={progressStyle} aria-hidden="true">
           {STEPS.map((step, idx) => {
             const isPast    = idx < currentIndex;
             const isCurrent = idx === currentIndex;
-            const dotStyle: React.CSSProperties = {
-              flex:          isCurrent ? '1' : undefined,
-              height:        '4px',
-              minWidth:      isCurrent ? undefined : '4px',
-              width:         isCurrent ? undefined : '4px',
-              borderRadius:  'var(--fnc-radius-full)',
-              background:    isCurrent
-                ? 'var(--fnc-accent)'
-                : isPast
-                  ? 'var(--fnc-color-fox-200)'
-                  : 'var(--fnc-border-subtle)',
-              transition:    `all var(--fnc-duration-gentle) var(--fnc-ease-calm)`,
-            };
             return (
-              <span key={step} style={dotStyle} title={STEP_LABELS[step]} />
+              <span
+                key={step}
+                style={{
+                  flex:         isCurrent ? '1' : undefined,
+                  height:       '4px',
+                  minWidth:     isCurrent ? undefined : '4px',
+                  width:        isCurrent ? undefined : '4px',
+                  borderRadius: 'var(--fnc-radius-full)',
+                  background:   isCurrent
+                    ? 'var(--fnc-accent)'
+                    : isPast
+                      ? 'var(--fnc-color-fox-200)'
+                      : 'var(--fnc-border-subtle)',
+                  transition:   `all var(--fnc-duration-gentle) var(--fnc-ease-calm)`,
+                }}
+              />
             );
           })}
         </div>
 
-        {/* Step content */}
+        {/* Screen content */}
         {state.step === 'welcome' && (
           <WelcomeStep onNext={next} />
         )}
-        {state.step === 'privacy' && (
-          <PrivacyStep
-            state={state.privacy}
-            onChange={privacy => setState(prev => ({ ...prev, privacy }))}
-            onNext={next}
-          />
-        )}
+
         {state.step === 'services' && (
           <ServicesStep
-            state={state.services}
-            onChange={services => setState(prev => ({ ...prev, services }))}
+            services={state.services}
+            onChange={patch =>
+              setState(prev => ({
+                ...prev,
+                services: { ...prev.services, ...patch },
+              }))
+            }
             onNext={next}
           />
         )}
-        {state.step === 'appearance' && (
-          <AppearanceStep
-            state={state.appearance}
-            onChange={appearance => setState(prev => ({ ...prev, appearance }))}
-            onNext={next}
-          />
-        )}
+
         {state.step === 'done' && (
           <DoneStep
-            setupState={state}
-            onNext={next}
+            services={state.services}
+            onFinish={next}
           />
         )}
       </div>

@@ -1,0 +1,74 @@
+{
+  "_comment": "Pre-loaded filter lists for Fennec's bundled uBlock Origin.",
+  "_comment2": "These lists are downloaded and verified by `fennec bootstrap`.",
+  "_comment3": "checksums are SHA-256 of the list file at the pinned version.",
+
+  "lists": [
+    {
+      "id":          "ublock-filters",
+      "title":       "uBlock Origin Filters",
+      "group":       "default",
+      "enabled":     true,
+      "url":         "https://ublockorigin.pages.dev/assets/uBlock/filters.txt",
+      "cdnURL":      "https://cdn.jsdelivr.net/gh/uBlockOrigin/uAssets@master/filters/filters.txt",
+      "homeURL":     "https://github.com/uBlockOrigin/uAssets",
+      "supportURL":  "https://github.com/uBlockOrigin/uAssets/issues",
+      "tags":        ["default"]
+    },
+    {
+      "id":          "easylist",
+      "title":       "EasyList",
+      "group":       "ads",
+      "enabled":     true,
+      "url":         "https://easylist.to/easylist/easylist.txt",
+      "cdnURL":      "https://cdn.jsdelivr.net/gh/nicowillis/easylist@master/easylist.txt",
+      "homeURL":     "https://easylist.to",
+      "supportURL":  "https://forums.lanik.us",
+      "tags":        ["default", "ads"]
+    },
+    {
+      "id":          "easyprivacy",
+      "title":       "EasyPrivacy",
+      "group":       "privacy",
+      "enabled":     true,
+      "url":         "https://easylist.to/easylist/easyprivacy.txt",
+      "cdnURL":      "https://cdn.jsdelivr.net/gh/nicowillis/easylist@master/easyprivacy.txt",
+      "homeURL":     "https://easylist.to",
+      "supportURL":  "https://forums.lanik.us",
+      "tags":        ["default", "privacy"]
+    },
+    {
+      "id":          "ublock-privacy",
+      "title":       "uBlock Origin Privacy Filters",
+      "group":       "privacy",
+      "enabled":     true,
+      "url":         "https://ublockorigin.pages.dev/assets/uBlock/privacy.txt",
+      "cdnURL":      "https://cdn.jsdelivr.net/gh/uBlockOrigin/uAssets@master/filters/privacy.txt",
+      "homeURL":     "https://github.com/uBlockOrigin/uAssets",
+      "supportURL":  "https://github.com/uBlockOrigin/uAssets/issues",
+      "tags":        ["default", "privacy"]
+    },
+    {
+      "id":          "peter-lowe-list",
+      "title":       "Peter Lowe's Ad and tracking server list",
+      "group":       "privacy",
+      "enabled":     true,
+      "url":         "https://pgl.yoyo.org/adservers/serverlist.php?hostformat=hosts&showintro=1&mimetype=plaintext",
+      "homeURL":     "https://pgl.yoyo.org/adservers",
+      "supportURL":  "mailto:peter@yoyo.org",
+      "tags":        ["default", "privacy"]
+    }
+  ],
+
+  "autoRefresh": {
+    "enabled":       false,
+    "intervalDays":  7,
+    "_comment": "Auto-refresh is disabled by default. Enabled only if user opts in at fennec://setup."
+  },
+
+  "fennecIntegration": {
+    "logBlockEvents":  true,
+    "journalSourceTag": "ublock",
+    "_comment": "When logBlockEvents is true, every uBO block/allow decision is forwarded to the RequestJournal via JournalInterceptor::OnBlock(). The block_reason field contains the matched filter rule, e.g. 'uBO: EasyList §general-block'."
+  }
+}

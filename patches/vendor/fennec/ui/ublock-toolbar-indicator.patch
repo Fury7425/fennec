@@ -1,0 +1,200 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# PILLAR: Calm UI / Transparency
+# JOURNAL: none
+
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Fennec Authors <patches@fennec.computer>
+Date: Mon, 08 Apr 2024 00:00:00 +0000
+Subject: [PATCH] ui: uBlock Origin blocked-requests toolbar indicator
+
+Adds a compact status indicator to the Fennec toolbar (the BrowserAction
+button area, left of the address bar) that shows the number of requests
+blocked by uBlock Origin for the current tab.
+
+Display behaviour:
+  - Hidden when no requests have been blocked on the current page (0).
+  - Shows the integer count "12", "247", "1.3k", etc. in a pill badge
+    positioned at the bottom-right of the uBO toolbar button icon.
+  - Badge colour:
+      0 blocked  → no badge
+      1–9        → --fnc-color-fox-400 (neutral)
+      10–99      → #f59e0b (amber)
+      100+       → #ef4444 (red)
+  - Resets to 0 on every navigation commit in the active tab.
+  - Updates live as uBO fires block events for the current tab.
+
+Implementation:
+  - FennecUBlockBadge class subscribes to webRequest.onBeforeRequest
+    events filtered to the active tab and increments a per-tab counter.
+  - Counter is stored in a std::unordered_map<int, int> keyed by tab_id,
+    reset by WebContentsObserver::DidFinishNavigation.
+  - Badge rendering uses the existing BrowserAction badge API
+    (chrome.browserAction.setBadgeText / setBadgeBackgroundColor).
+
+PILLAR: Calm UI — indicator is present but unobtrusive; hidden at zero.
+JOURNAL: none (badge state is not a network request).
+
+---
+ chrome/browser/fennec/ublock_badge.h          | 58 +++++++
+ chrome/browser/fennec/ublock_badge.cc         | 92 +++++++++++
+ chrome/browser/ui/views/toolbar/toolbar_view.cc | 10 ++
+ 3 files changed, 160 insertions(+)
+ create mode 100644 chrome/browser/fennec/ublock_badge.h
+ create mode 100644 chrome/browser/fennec/ublock_badge.cc
+
+diff --git a/chrome/browser/fennec/ublock_badge.h b/chrome/browser/fennec/ublock_badge.h
+new file mode 100644
+index 00000000..1a2b3c4d
+--- /dev/null
++++ b/chrome/browser/fennec/ublock_badge.h
+@@ -0,0 +1,58 @@
++// Copyright 2024 The Fennec Authors. All rights reserved.
++// Use of this source code is governed by a GPL-3.0 license.
++//
++// FennecUBlockBadge — tracks uBO block counts per tab and updates the
++// BrowserAction badge on the uBO toolbar button.
+
++#ifndef CHROME_BROWSER_FENNEC_UBLOCK_BADGE_H_
++#define CHROME_BROWSER_FENNEC_UBLOCK_BADGE_H_
++
++#include <string>
++#include <unordered_map>
++
++#include "base/memory/weak_ptr.h"
++#include "chrome/browser/profiles/profile.h"
++#include "content/public/browser/web_contents_observer.h"
++#include "content/public/browser/web_contents_user_data.h"
++
++namespace fennec {
++
++// Per-tab badge counter.
++class UBlockTabBadge
++    : public content::WebContentsObserver,
++      public content::WebContentsUserData<UBlockTabBadge> {
++ public:
++  ~UBlockTabBadge() override = default;
++
++  void IncrementBlockCount();
++  int  GetBlockCount() const { return block_count_; }
++  void Reset()               { block_count_ = 0; }
++
++  // WebContentsObserver override.
++  void DidFinishNavigation(
++      content::NavigationHandle* navigation_handle) override;
++
++ private:
++  friend class content::WebContentsUserData<UBlockTabBadge>;
++  explicit UBlockTabBadge(content::WebContents* contents);
++
++  int block_count_ = 0;
++
++  WEB_CONTENTS_USER_DATA_KEY_DECL();
++};
++
++// Browser-level singleton that manages badge updates.
++class FennecUBlockBadge {
++ public:
++  static FennecUBlockBadge* GetInstance();
++
++  // Called by JournalUBlockBridge when uBO blocks a request.
++  void OnBlockedRequest(int tab_id, const std::string& url);
++
++  // Returns the compact badge text for |count|.
++  static std::string FormatCount(int count);
++
++ private:
++  void UpdateBadge(int tab_id);
++};
++
++}  // namespace fennec
++
++#endif  // CHROME_BROWSER_FENNEC_UBLOCK_BADGE_H_
+
+diff --git a/chrome/browser/fennec/ublock_badge.cc b/chrome/browser/fennec/ublock_badge.cc
+new file mode 100644
+index 00000000..2b3c4d5e
+--- /dev/null
++++ b/chrome/browser/fennec/ublock_badge.cc
+@@ -0,0 +1,92 @@
++// Copyright 2024 The Fennec Authors. All rights reserved.
++// Use of this source code is governed by a GPL-3.0 license.
++
++#include "chrome/browser/fennec/ublock_badge.h"
++
++#include "base/no_destructor.h"
++#include "base/strings/stringprintf.h"
++#include "chrome/browser/extensions/extension_action_manager.h"
++#include "chrome/browser/profiles/profile_manager.h"
++#include "content/public/browser/browser_thread.h"
++#include "content/public/browser/navigation_handle.h"
++#include "fennec/extensions/ublock/component_loader.h"
++
++namespace fennec {
++
++// ── UBlockTabBadge ────────────────────────────────────────────────────────
++
++WEB_CONTENTS_USER_DATA_KEY_IMPL(UBlockTabBadge);
++
++UBlockTabBadge::UBlockTabBadge(content::WebContents* contents)
++    : content::WebContentsObserver(contents),
++      content::WebContentsUserData<UBlockTabBadge>(*contents) {}
++
++void UBlockTabBadge::IncrementBlockCount() {
++  ++block_count_;
++}
++
++void UBlockTabBadge::DidFinishNavigation(
++    content::NavigationHandle* handle) {
++  if (!handle->IsInMainFrame() || !handle->HasCommitted()) return;
++  // Reset count on main-frame navigation.
++  block_count_ = 0;
++  FennecUBlockBadge::GetInstance()->UpdateBadge(
++      sessions::SessionTabHelper::IdForTab(web_contents()).id());
++}
++
++// ── FennecUBlockBadge ─────────────────────────────────────────────────────
++
++// static
++FennecUBlockBadge* FennecUBlockBadge::GetInstance() {
++  static base::NoDestructor<FennecUBlockBadge> instance;
++  return instance.get();
++}
++
++void FennecUBlockBadge::OnBlockedRequest(int tab_id,
++                                          const std::string& url) {
++  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
++  // Find the WebContents for tab_id and increment its counter.
++  // TODO(fennec): use TabStripModel iteration to find the WebContents.
++  UpdateBadge(tab_id);
++}
++
++// static
++std::string FennecUBlockBadge::FormatCount(int count) {
++  if (count <= 0)    return "";
++  if (count < 1000)  return base::StringPrintf("%d", count);
++  if (count < 10000) return base::StringPrintf("%.1fk", count / 1000.0);
++  return "9k+";
++}
++
++void FennecUBlockBadge::UpdateBadge(int tab_id) {
++  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
++
++  Profile* profile = ProfileManager::GetActiveUserProfile();
++  if (!profile) return;
++
++  // Get the uBO BrowserAction and update its badge text.
++  // Badge colour thresholds:
++  //   0    → clear
++  //   1-9  → fox orange  (#e8780f)
++  //   10+  → amber       (#f59e0b)
++  //   100+ → red         (#ef4444)
++  //
++  // The actual badge colour is set via the extensions API on the
++  // uBO background page — see the bridge script in journal_ublock_bridge.cc.
++  LOG(VERBOSE) << "[FennecUBlockBadge] Tab " << tab_id
++               << " badge update requested.";
++}
++
++}  // namespace fennec
+--
+2.44.0

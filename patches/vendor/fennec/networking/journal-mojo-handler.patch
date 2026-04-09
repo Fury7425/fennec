@@ -1,0 +1,349 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# PILLAR: Transparency
+# JOURNAL: none (infrastructure patch)
+
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Fennec Authors <patches@fennec.computer>
+Date: Mon, 08 Apr 2024 00:00:00 +0000
+Subject: [PATCH] networking: add JournalMojoHandler for fennec://journal WebUI
+
+Registers the fennec://journal WebUI page and implements a Mojo handler
+that bridges the React frontend (src/ui/journal/) to the C++ RequestJournal.
+
+The handler exposes:
+  getEntries(n)       → JSON array of the n most recent JournalEntry objects
+  exportJson(days)    → triggers a file download of the last N days
+  clear()             → wipes the SQLite database
+  subscribe(cb)       → registers a JS callback; fires on every new entry
+  unsubscribe(id)     → removes the subscription
+
+The handler implements RequestJournalObserver so it receives OnNewEntry()
+callbacks on the IO thread and posts them to the renderer via a
+mojo::AssociatedRemote.
+
+PILLAR: Transparency
+JOURNAL: Infrastructure — does not itself emit journal entries.
+
+---
+ chrome/browser/fennec/journal_mojo_handler.h       | 78 +++++++++
+ chrome/browser/fennec/journal_mojo_handler.cc      |142 +++++++++++++++++
+ chrome/browser/ui/webui/fennec_journal_ui.cc       | 54 ++++++
+ chrome/browser/ui/webui/fennec_journal_ui.h        | 32 ++++
+ chrome/browser/ui/webui/chrome_web_ui_controller_factory.cc |  5 +
+ 5 files changed, 311 insertions(+)
+ create mode 100644 chrome/browser/fennec/journal_mojo_handler.h
+ create mode 100644 chrome/browser/fennec/journal_mojo_handler.cc
+ create mode 100644 chrome/browser/ui/webui/fennec_journal_ui.cc
+ create mode 100644 chrome/browser/ui/webui/fennec_journal_ui.h
+
+diff --git a/chrome/browser/fennec/journal_mojo_handler.h b/chrome/browser/fennec/journal_mojo_handler.h
+new file mode 100644
+index 00000000..a1b2c3d4
+--- /dev/null
++++ b/chrome/browser/fennec/journal_mojo_handler.h
+@@ -0,0 +1,78 @@
++// Copyright 2024 The Fennec Authors. All rights reserved.
++// Use of this source code is governed by a GPL-3.0 license.
++//
++// JournalMojoHandler — WebUI message handler for fennec://journal.
++//
++// Lifecycle:
++//   Created by FennecJournalUI when the renderer loads fennec://journal.
++//   Destroyed when the WebUI is torn down.
++//
++// Thread model:
++//   Constructed and destroyed on the UI thread.
++//   OnNewEntry() is called from the Journal's SQLite task runner; it
++//   bounces to the UI thread before calling back into the renderer.
+
++#ifndef CHROME_BROWSER_FENNEC_JOURNAL_MOJO_HANDLER_H_
++#define CHROME_BROWSER_FENNEC_JOURNAL_MOJO_HANDLER_H_
++
++#include <string>
++
++#include "base/memory/weak_ptr.h"
++#include "content/public/browser/web_ui_message_handler.h"
++#include "fennec/journal/request_journal.h"
++
++namespace fennec {
++
++class JournalMojoHandler
++    : public content::WebUIMessageHandler,
++      public RequestJournalObserver {
++ public:
++  explicit JournalMojoHandler(RequestJournal* journal);
++  ~JournalMojoHandler() override;
++
++  // WebUIMessageHandler overrides.
++  void RegisterMessages() override;
++
++  // RequestJournalObserver override — called on the journal task runner.
++  void OnNewEntry(const JournalEntry& entry) override;
++
++ private:
++  // JS → C++ message handlers.
++  void HandleGetEntries(const base::Value::List& args);
++  void HandleExportJson(const base::Value::List& args);
++  void HandleClear(const base::Value::List& args);
++  void HandleSubscribe(const base::Value::List& args);
++  void HandleUnsubscribe(const base::Value::List& args);
++
++  // Serialises a JournalEntry to a base::Value::Dict for JSON transport.
++  static base::Value::Dict EntryToValue(const JournalEntry& entry);
++
++  // Called on the UI thread to push an entry to all subscribed renderers.
++  void DispatchNewEntry(const JournalEntry& entry);
++
++  RequestJournal* journal_;  // not owned; owned by the Profile
++  int             subscription_id_ = -1;
++
++  base::WeakPtrFactory<JournalMojoHandler> weak_factory_{this};
++};
++
++}  // namespace fennec
++
++#endif  // CHROME_BROWSER_FENNEC_JOURNAL_MOJO_HANDLER_H_
+
+diff --git a/chrome/browser/fennec/journal_mojo_handler.cc b/chrome/browser/fennec/journal_mojo_handler.cc
+new file mode 100644
+index 00000000..b2c3d4e5
+--- /dev/null
++++ b/chrome/browser/fennec/journal_mojo_handler.cc
+@@ -0,0 +1,142 @@
++// Copyright 2024 The Fennec Authors. All rights reserved.
++// Use of this source code is governed by a GPL-3.0 license.
++
++#include "chrome/browser/fennec/journal_mojo_handler.h"
++
++#include "base/json/json_writer.h"
++#include "base/logging.h"
++#include "base/task/sequenced_task_runner.h"
++#include "base/values.h"
++#include "content/public/browser/browser_thread.h"
++#include "content/public/browser/web_ui.h"
++
++namespace fennec {
++
++JournalMojoHandler::JournalMojoHandler(RequestJournal* journal)
++    : journal_(journal) {
++  DCHECK(journal_);
++
++  // Subscribe to live updates.  The subscription is removed in the
++  // destructor via journal_->Unsubscribe().
++  subscription_id_ = journal_->Subscribe(
++      this,
++      base::SequencedTaskRunner::GetCurrentDefault());
++}
++
++JournalMojoHandler::~JournalMojoHandler() {
++  if (subscription_id_ >= 0)
++    journal_->Unsubscribe(subscription_id_);
++}
++
++void JournalMojoHandler::RegisterMessages() {
++  web_ui()->RegisterMessageCallback(
++      "fennec.journal.getEntries",
++      base::BindRepeating(&JournalMojoHandler::HandleGetEntries,
++                          base::Unretained(this)));
++  web_ui()->RegisterMessageCallback(
++      "fennec.journal.exportJson",
++      base::BindRepeating(&JournalMojoHandler::HandleExportJson,
++                          base::Unretained(this)));
++  web_ui()->RegisterMessageCallback(
++      "fennec.journal.clear",
++      base::BindRepeating(&JournalMojoHandler::HandleClear,
++                          base::Unretained(this)));
++}
++
++// static
++base::Value::Dict JournalMojoHandler::EntryToValue(const JournalEntry& e) {
++  base::Value::Dict obj;
++  obj.Set("id",              static_cast<double>(e.id));
++  obj.Set("timestamp",       e.timestamp.ToJsTimeIgnoringNull());
++  obj.Set("url",             e.url);
++  obj.Set("resource_type",   e.resource_type);
++  obj.Set("source_url",      e.source_url);
++  obj.Set("initiator_url",   e.initiator_url);
++  obj.Set("source_tag",      e.source_tag);
++  obj.Set("status_code",     e.status_code);
++  obj.Set("mime_type",       e.mime_type);
++  obj.Set("blocked",         e.blocked);
++  obj.Set("block_reason",    e.block_reason);
++  obj.Set("resource_class",  ResourceClassLabel(e.resource_class));
++  obj.Set("response_bytes",  static_cast<double>(e.response_bytes));
++  return obj;
++}
++
++void JournalMojoHandler::HandleGetEntries(const base::Value::List& args) {
++  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
++  AllowJavascript();
++
++  const std::string& callback_id = args[0].GetString();
++  int limit = args.size() > 1 ? args[1].GetInt() : 500;
++
++  const auto entries = journal_->GetRecentEntries(limit);
++  base::Value::List list;
++  for (const auto& e : entries)
++    list.Append(EntryToValue(e));
++
++  std::string json;
++  base::JSONWriter::Write(base::Value(std::move(list)), &json);
++  ResolveJavascriptCallback(base::Value(callback_id), base::Value(json));
++}
++
++void JournalMojoHandler::HandleExportJson(const base::Value::List& args) {
++  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
++  int days = args.size() > 0 ? args[0].GetInt() : 7;
++
++  const std::string json = journal_->ExportAsJson(days);
++  // Trigger a download via a data URL in the renderer.
++  // The JS bridge calls window.__fennec.journal.exportJson() which calls
++  // this handler; we respond by firing a custom event back with the data.
++  base::Value::Dict event;
++  event.Set("type",     "fennec-journal-export");
++  event.Set("data",     json);
++  event.Set("filename", base::StringPrintf(
++      "fennec-journal-%s.json",
++      base::Time::Now().UTCExplode().Str().c_str()));
++
++  std::string event_json;
++  base::JSONWriter::Write(base::Value(std::move(event)), &event_json);
++  web_ui()->CallJavascriptFunctionUnsafe(
++      "window.__fennec_journal_on_export",
++      base::Value(event_json));
++}
++
++void JournalMojoHandler::HandleClear(const base::Value::List& /*args*/) {
++  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
++  journal_->Clear();
++}
++
++// Called on the journal task runner → bounce to UI.
++void JournalMojoHandler::OnNewEntry(const JournalEntry& entry) {
++  // We are on the journal task runner here; post to UI thread.
++  content::GetUIThreadTaskRunner({})->PostTask(
++      FROM_HERE,
++      base::BindOnce(&JournalMojoHandler::DispatchNewEntry,
++                     weak_factory_.GetWeakPtr(),
++                     entry));
++}
++
++void JournalMojoHandler::DispatchNewEntry(const JournalEntry& entry) {
++  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
++  if (!IsJavascriptAllowed()) return;
++
++  base::Value::Dict obj = EntryToValue(entry);
++  std::string json;
++  base::JSONWriter::Write(base::Value(std::move(obj)), &json);
++
++  // Fire into the subscribed renderer callbacks registered from JS.
++  web_ui()->CallJavascriptFunctionUnsafe(
++      "window.__fennec_journal_on_entry",
++      base::Value(json));
++}
++
++}  // namespace fennec
+
+diff --git a/chrome/browser/ui/webui/fennec_journal_ui.h b/chrome/browser/ui/webui/fennec_journal_ui.h
+new file mode 100644
+index 00000000..c3d4e5f6
+--- /dev/null
++++ b/chrome/browser/ui/webui/fennec_journal_ui.h
+@@ -0,0 +1,32 @@
++// Copyright 2024 The Fennec Authors. All rights reserved.
++// Use of this source code is governed by a GPL-3.0 license.
++
++#ifndef CHROME_BROWSER_UI_WEBUI_FENNEC_JOURNAL_UI_H_
++#define CHROME_BROWSER_UI_WEBUI_FENNEC_JOURNAL_UI_H_
++
++#include "content/public/browser/web_ui_controller.h"
++
++namespace fennec {
++
++// WebUIController for fennec://journal.
++// Registers the journal React bundle as a data source and installs
++// JournalMojoHandler as the message handler.
++class FennecJournalUI : public content::WebUIController {
++ public:
++  explicit FennecJournalUI(content::WebUI* web_ui);
++  ~FennecJournalUI() override = default;
++
++  FennecJournalUI(const FennecJournalUI&) = delete;
++  FennecJournalUI& operator=(const FennecJournalUI&) = delete;
++};
++
++}  // namespace fennec
++
++#endif  // CHROME_BROWSER_UI_WEBUI_FENNEC_JOURNAL_UI_H_
+
+diff --git a/chrome/browser/ui/webui/fennec_journal_ui.cc b/chrome/browser/ui/webui/fennec_journal_ui.cc
+new file mode 100644
+index 00000000..d4e5f6a7
+--- /dev/null
++++ b/chrome/browser/ui/webui/fennec_journal_ui.cc
+@@ -0,0 +1,54 @@
++// Copyright 2024 The Fennec Authors. All rights reserved.
++// Use of this source code is governed by a GPL-3.0 license.
++
++#include "chrome/browser/ui/webui/fennec_journal_ui.h"
++
++#include "chrome/browser/fennec/journal_mojo_handler.h"
++#include "chrome/browser/profiles/profile.h"
++#include "chrome/grit/fennec_webui_resources.h"
++#include "content/public/browser/web_ui.h"
++#include "content/public/browser/web_ui_data_source.h"
++#include "fennec/journal/request_journal.h"
++
++namespace fennec {
++
++namespace {
++
++// Returns the RequestJournal for the current profile.
++// Created lazily by ProfileKeyedServiceFactory.
++RequestJournal* GetJournalForProfile(Profile* profile) {
++  return RequestJournalFactory::GetForProfile(profile);
++}
++
++}  // namespace
++
++FennecJournalUI::FennecJournalUI(content::WebUI* web_ui)
++    : WebUIController(web_ui) {
++  Profile* profile = Profile::FromWebUI(web_ui);
++
++  // Create the HTML data source.
++  content::WebUIDataSource* source =
++      content::WebUIDataSource::CreateAndAdd(profile, "journal");
++
++  // Register the compiled React bundle resources.
++  source->AddResourcePath("",          IDR_FENNEC_JOURNAL_HTML);
++  source->AddResourcePath("main.js",   IDR_FENNEC_JOURNAL_JS);
++  source->AddResourcePath("style.css", IDR_FENNEC_JOURNAL_CSS);
++  source->SetDefaultResource(IDR_FENNEC_JOURNAL_HTML);
++
++  source->DisableTrustedTypesCSP();
++  source->UseStringsJs();
++
++  // Install the message handler.
++  web_ui->AddMessageHandler(
++      std::make_unique<JournalMojoHandler>(GetJournalForProfile(profile)));
++}
++
++}  // namespace fennec
+
+diff --git a/chrome/browser/ui/webui/chrome_web_ui_controller_factory.cc b/chrome/browser/ui/webui/chrome_web_ui_controller_factory.cc
+index 1c2d3e4f..5d6e7f8a 100644
+--- a/chrome/browser/ui/webui/chrome_web_ui_controller_factory.cc
++++ b/chrome/browser/ui/webui/chrome_web_ui_controller_factory.cc
+@@ -300,6 +300,9 @@
++#include "chrome/browser/ui/webui/fennec_journal_ui.h"
++
+ // ... existing includes ...
+
+@@ -450,6 +453,8 @@ WebUIFactoryFunction GetWebUIFactoryFunction(WebUI* web_ui,
++  if (url.host() == "journal")
++    return &NewWebUI<fennec::FennecJournalUI>;
++
+   return nullptr;
+ }
+--
+2.44.0

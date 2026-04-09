@@ -1,0 +1,239 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# PILLAR: Transparency
+# JOURNAL: none (build-system patch only)
+
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Fennec Authors <patches@fennec.computer>
+Date: Mon, 08 Apr 2024 00:00:00 +0000
+Subject: [PATCH] networking: add FilterEngine and RequestJournal to GN build
+
+Wires fennec/journal/ into the Chromium GN build so that the filter
+engine and request journal are compiled as a browser-process component.
+
+Adds:
+  fennec/journal/filter_engine.h
+  fennec/journal/filter_engine.cc
+  fennec/journal/request_journal.h   (updated)
+  fennec/journal/request_journal.cc  (updated)
+  fennec/journal/BUILD.gn
+
+The fennec_journal component depends on:
+  //base
+  //net
+  //sql
+  //url
+  //net/base:registry_controlled_domains
+
+Pre-loads five filter lists from bundled data files at browser startup
+via JournalFilterEngineService (singleton, created in BrowserProcessImpl).
+Filter lists are embedded as data resources via grit:
+  //fennec/journal/resources/easyprivacy.txt   (EasyPrivacy)
+  //fennec/journal/resources/easylist.txt      (EasyList)
+  //fennec/journal/resources/ubo-filters.txt   (uBlock Origin Filters)
+  //fennec/journal/resources/ubo-privacy.txt   (uBlock Origin Privacy)
+  //fennec/journal/resources/peter-lowe.txt    (Peter Lowe's List)
+
+PILLAR: Transparency
+JOURNAL: none (build config, no runtime impact)
+
+---
+ fennec/journal/BUILD.gn                          | 62 +++++++++++++++
+ fennec/journal/journal_filter_engine_service.h   | 58 ++++++++++++++
+ fennec/journal/journal_filter_engine_service.cc  | 96 +++++++++++++++++++++
+ chrome/browser/BUILD.gn                          |  3 +
+ 3 files changed, 219 insertions(+)
+ create mode 100644 fennec/journal/BUILD.gn
+ create mode 100644 fennec/journal/journal_filter_engine_service.h
+ create mode 100644 fennec/journal/journal_filter_engine_service.cc
+
+diff --git a/fennec/journal/BUILD.gn b/fennec/journal/BUILD.gn
+new file mode 100644
+index 00000000..1a2b3c4d
+--- /dev/null
++++ b/fennec/journal/BUILD.gn
+@@ -0,0 +1,62 @@
++# Copyright 2024 The Fennec Authors. All rights reserved.
++# Use of this source code is governed by a GPL-3.0 license.
++
++import("//build/config/features.gni")
++
++source_set("journal") {
++  sources = [
++    "filter_engine.cc",
++    "filter_engine.h",
++    "journal_filter_engine_service.cc",
++    "journal_filter_engine_service.h",
++    "request_journal.cc",
++    "request_journal.h",
++  ]
++
++  deps = [
++    "//base",
++    "//net",
++    "//net/base:registry_controlled_domains",
++    "//sql",
++    "//url",
++  ]
++
++  public_deps = [
++    "//base",
++  ]
++}
++
++# Filter list data files — embedded as string resources loaded at startup.
++# The actual filter list text files are downloaded by `fennec bootstrap`
++# and placed in fennec/journal/resources/.  They are NOT committed to the
++# repo (they can be multi-MB).  The bootstrap step verifies SHA-256.
++#
++# During development without a bootstrap, stub empty files are used and
++# FilterEngine will classify all requests as kThirdParty.
++copy("filter_list_resources") {
++  sources = [
++    "resources/easyprivacy.txt",
++    "resources/easylist.txt",
++    "resources/ubo-filters.txt",
++    "resources/ubo-privacy.txt",
++    "resources/peter-lowe.txt",
++  ]
++  outputs = [ "$root_out_dir/fennec_filter_lists/{{source_file_part}}" ]
++}
+
+diff --git a/fennec/journal/journal_filter_engine_service.h b/fennec/journal/journal_filter_engine_service.h
+new file mode 100644
+index 00000000..2b3c4d5e
+--- /dev/null
++++ b/fennec/journal/journal_filter_engine_service.h
+@@ -0,0 +1,58 @@
++// Copyright 2024 The Fennec Authors. All rights reserved.
++// Use of this source code is governed by a GPL-3.0 license.
++//
++// JournalFilterEngineService — browser-process singleton that owns the
++// FilterEngine instance and serves it to JournalInterceptor instances.
++//
++// Lifecycle: created in BrowserProcessImpl::Init(), destroyed in
++// BrowserProcessImpl::~BrowserProcessImpl().
++
++#ifndef FENNEC_JOURNAL_JOURNAL_FILTER_ENGINE_SERVICE_H_
++#define FENNEC_JOURNAL_JOURNAL_FILTER_ENGINE_SERVICE_H_
++
++#include <memory>
++
++#include "base/no_destructor.h"
++#include "fennec/journal/filter_engine.h"
++
++namespace fennec {
++
++class JournalFilterEngineService {
++ public:
++  static JournalFilterEngineService* GetInstance();
++
++  // Loads the bundled filter lists from the given resource directory.
++  // Called once from BrowserProcessImpl::Init() on the UI thread.
++  // The actual list parsing is posted to a background task runner to avoid
++  // blocking the main thread.
++  void LoadFilterListsAsync(const base::FilePath& resource_dir);
++
++  // Returns the shared FilterEngine.  May return an engine with zero rules
++  // if called before LoadFilterListsAsync() completes — classification will
++  // fall through to kThirdParty, which is safe.
++  FilterEngine* GetFilterEngine();
++
++ private:
++  friend class base::NoDestructor<JournalFilterEngineService>;
++  JournalFilterEngineService();
++  ~JournalFilterEngineService() = default;
++
++  std::unique_ptr<FilterEngine> engine_;
++};
++
++}  // namespace fennec
++
++#endif  // FENNEC_JOURNAL_JOURNAL_FILTER_ENGINE_SERVICE_H_
+
+diff --git a/fennec/journal/journal_filter_engine_service.cc b/fennec/journal/journal_filter_engine_service.cc
+new file mode 100644
+index 00000000..3c4d5e6f
+--- /dev/null
++++ b/fennec/journal/journal_filter_engine_service.cc
+@@ -0,0 +1,96 @@
++// Copyright 2024 The Fennec Authors. All rights reserved.
++// Use of this source code is governed by a GPL-3.0 license.
++
++#include "fennec/journal/journal_filter_engine_service.h"
++
++#include "base/files/file_util.h"
++#include "base/logging.h"
++#include "base/no_destructor.h"
++#include "base/task/thread_pool.h"
++
++namespace fennec {
++
++namespace {
++
++struct FilterListSpec {
++  const char*  filename;
++  FilterListId list_id;
++};
++
++constexpr FilterListSpec kFilterLists[] = {
++  { "easyprivacy.txt",  FilterListId::kEasyPrivacy },
++  { "easylist.txt",     FilterListId::kEasyList    },
++  { "ubo-filters.txt",  FilterListId::kUboFilters  },
++  { "ubo-privacy.txt",  FilterListId::kUboPrivacy  },
++  { "peter-lowe.txt",   FilterListId::kPeterLowe   },
++};
++
++}  // namespace
++
++// static
++JournalFilterEngineService* JournalFilterEngineService::GetInstance() {
++  static base::NoDestructor<JournalFilterEngineService> instance;
++  return instance.get();
++}
++
++JournalFilterEngineService::JournalFilterEngineService()
++    : engine_(std::make_unique<FilterEngine>()) {}
++
++FilterEngine* JournalFilterEngineService::GetFilterEngine() {
++  return engine_.get();
++}
++
++void JournalFilterEngineService::LoadFilterListsAsync(
++    const base::FilePath& resource_dir) {
++  // Post to a background sequence so we don't block the UI thread.
++  base::ThreadPool::PostTask(
++      FROM_HERE,
++      { base::MayBlock(), base::TaskPriority::USER_BLOCKING,
++        base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN },
++      base::BindOnce(
++          [](FilterEngine* engine, base::FilePath dir) {
++            size_t total = 0;
++            for (const auto& spec : kFilterLists) {
++              base::FilePath path = dir.AppendASCII(spec.filename);
++              std::string content;
++              if (!base::ReadFileToString(path, &content)) {
++                LOG(WARNING) << "[FilterEngine] Missing list: " << path;
++                continue;
++              }
++              engine->LoadFilterList(content, spec.list_id);
++              total += engine->RuleCount();
++              LOG(INFO) << "[FilterEngine] Loaded " << spec.filename
++                        << " (" << engine->RuleCount() << " total rules)";
++            }
++            LOG(INFO) << "[FilterEngine] Ready with " << total << " total rules.";
++          },
++          engine_.get(),
++          resource_dir));
++}
++
++}  // namespace fennec
+
+diff --git a/chrome/browser/BUILD.gn b/chrome/browser/BUILD.gn
+index 9a1b2c3d..4d5e6f7a 100644
+--- a/chrome/browser/BUILD.gn
++++ b/chrome/browser/BUILD.gn
+@@ -600,6 +600,7 @@ source_set("browser") {
++  "//fennec/journal",
+ }
+--
+2.44.0

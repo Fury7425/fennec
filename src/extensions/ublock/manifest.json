@@ -1,0 +1,82 @@
+{
+  "manifest_version": 2,
+  "name": "uBlock Origin",
+  "short_name": "uBlock Origin",
+  "version": "1.59.0",
+  "description": "Finally, an efficient blocker. Easy on CPU and memory.",
+  "author": "Raymond Hill",
+  "license": "GPL-3.0-only",
+  "homepage_url": "https://github.com/gorhill/uBlock#ublock-origin",
+
+  "browser_action": {
+    "default_icon": {
+      "16":  "img/icon16.png",
+      "19":  "img/icon19.png",
+      "38":  "img/icon38.png",
+      "64":  "img/icon64.png",
+      "128": "img/icon128.png"
+    },
+    "default_popup": "popup.html",
+    "default_title": "uBlock Origin"
+  },
+
+  "background": {
+    "page": "background.html",
+    "persistent": true
+  },
+
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["js/vapi.js", "js/vapi-client.js", "js/contentscript.js"],
+      "run_at": "document_start",
+      "all_frames": true
+    }
+  ],
+
+  "permissions": [
+    "contextMenus",
+    "privacy",
+    "storage",
+    "tabs",
+    "unlimitedStorage",
+    "webNavigation",
+    "webRequest",
+    "webRequestBlocking",
+    "<all_urls>"
+  ],
+
+  "optional_permissions": [
+    "bookmarks",
+    "history",
+    "trailingSlashFix",
+    "declarativeNetRequest"
+  ],
+
+  "icons": {
+    "16":  "img/icon16.png",
+    "64":  "img/icon64.png",
+    "128": "img/icon128.png"
+  },
+
+  "options_ui": {
+    "page": "dashboard.html",
+    "open_in_tab": true
+  },
+
+  "web_accessible_resources": [
+    "web_accessible_resources/*"
+  ],
+
+  "content_security_policy":
+    "script-src 'self' 'unsafe-eval'; object-src 'self'",
+
+  "_fennec": {
+    "component_extension": true,
+    "bundled_version": "1.59.0",
+    "bundled_sha256": "PLACEHOLDER_TO_BE_FILLED_BY_BOOTSTRAP",
+    "source_repo": "https://github.com/gorhill/uBlock",
+    "filter_list_integration": true,
+    "journal_events": true
+  }
+}

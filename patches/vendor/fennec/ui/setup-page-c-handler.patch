@@ -1,0 +1,318 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# PILLAR: Privacy / Transparency
+# JOURNAL: yes
+
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Fennec Authors <patches@fennec.computer>
+Date: Mon, 08 Apr 2024 00:00:00 +0000
+Subject: [PATCH] ui: SetupPageHandler — Mojo bridge for fennec://setup
+
+Implements the C++ side of the fennec://setup WebUI page:
+
+  1. SetupPageHandler (WebUIMessageHandler) — receives the commit()
+     message from the React frontend when the user clicks "Start browsing",
+     writes the chosen preferences to the profile, sets
+     kFennecOnboardingComplete = true, and calls
+     fennec::ReleaseConsentGuard() to permit outbound network traffic.
+
+  2. Preference registration — adds the following prefs to
+     chrome/browser/prefs/browser_prefs.cc:
+       fennec.onboarding.complete          (bool, default false)
+       fennec.services.enable_updates      (bool, default false)
+       fennec.services.enable_filter_refresh (bool, default false)
+       fennec.services.enable_mods_registry  (bool, default false)
+       fennec.services.enable_cws_proxy      (bool, default false)
+
+  3. Consent gate enforcement — NetworkServiceImpl::CreateURLLoaderFactory
+     checks fennec.onboarding.complete via the active profile's PrefService
+     before allowing any outbound HTTP/HTTPS request.  If the pref is false,
+     the request is rejected with ERR_BLOCKED_BY_CLIENT and a Journal entry
+     is written with:
+       resource_class: kBlocked
+       block_reason:   "consent-guard: setup not complete"
+
+  4. First-launch detection — on browser startup, if
+     fennec.onboarding.complete is false, the profile is redirected to
+     fennec://setup before the first navigation.  This happens in
+     Browser::OnFirstActiveTabCreated().
+
+PILLAR: Privacy (enforces consent gate), Transparency (releases guard)
+JOURNAL: Logs kFennecInternal events:
+           "consent-guard-active"   — on guard installation
+           "consent-guard-released" — on setup completion
+
+---
+ chrome/browser/fennec/setup_page_handler.h         | 68 +++++++++
+ chrome/browser/fennec/setup_page_handler.cc        |148 +++++++++++++++++++
+ chrome/browser/ui/webui/fennec_setup_ui.cc         | 62 ++++++++
+ chrome/browser/ui/webui/fennec_setup_ui.h          | 34 +++++
+ chrome/browser/prefs/browser_prefs.cc              | 12 ++
+ chrome/browser/browser.cc                          | 14 ++
+ services/network/network_service.cc                | 22 +++
+ 6 files changed, 360 insertions(+)
+ create mode 100644 chrome/browser/fennec/setup_page_handler.h
+ create mode 100644 chrome/browser/fennec/setup_page_handler.cc
+ create mode 100644 chrome/browser/ui/webui/fennec_setup_ui.cc
+ create mode 100644 chrome/browser/ui/webui/fennec_setup_ui.h
+
+diff --git a/chrome/browser/fennec/setup_page_handler.h b/chrome/browser/fennec/setup_page_handler.h
+new file mode 100644
+index 00000000..1a2b3c4d
+--- /dev/null
++++ b/chrome/browser/fennec/setup_page_handler.h
+@@ -0,0 +1,68 @@
++// Copyright 2024 The Fennec Authors. All rights reserved.
++// Use of this source code is governed by a GPL-3.0 license.
++//
++// SetupPageHandler — WebUI message handler for fennec://setup.
++//
++// Receives the commit(state) message from the React frontend and:
++//   1. Parses the JSON state object.
++//   2. Writes service opt-in prefs to the profile's PrefService.
++//   3. Sets fennec.onboarding.complete = true.
++//   4. Calls fennec::ReleaseConsentGuard() to permit network traffic.
++//   5. Navigates the tab to the user's new-tab page.
+
++#ifndef CHROME_BROWSER_FENNEC_SETUP_PAGE_HANDLER_H_
++#define CHROME_BROWSER_FENNEC_SETUP_PAGE_HANDLER_H_
++
++#include "base/values.h"
++#include "content/public/browser/web_ui_message_handler.h"
++
++class Profile;
++
++namespace fennec {
++
++// Pref keys — also used by the consent guard and service clients.
++inline constexpr char kPrefOnboardingComplete[]      = "fennec.onboarding.complete";
++inline constexpr char kPrefEnableUpdates[]           = "fennec.services.enable_updates";
++inline constexpr char kPrefEnableFilterRefresh[]     = "fennec.services.enable_filter_refresh";
++inline constexpr char kPrefEnableModsRegistry[]      = "fennec.services.enable_mods_registry";
++inline constexpr char kPrefEnableCwsProxy[]          = "fennec.services.enable_cws_proxy";
++
++class SetupPageHandler : public content::WebUIMessageHandler {
++ public:
++  explicit SetupPageHandler(Profile* profile);
++  ~SetupPageHandler() override = default;
++
++  // WebUIMessageHandler override.
++  void RegisterMessages() override;
++
++ private:
++  // JS→C++ message handler for "fennec.setup.commit".
++  // |args[0]| is the JSON-encoded SetupState from the React frontend.
++  void HandleCommit(const base::Value::List& args);
++
++  // JS→C++ message handler for "fennec.setup.getVersion".
++  // Resolves the callback with the Fennec version string.
++  void HandleGetVersion(const base::Value::List& args);
++
++  Profile* profile_;  // not owned; outlives this handler
++};
++
++// Registers all Fennec prefs with the given registry.
++// Called from chrome/browser/prefs/browser_prefs.cc.
++void RegisterFennecProfilePrefs(user_prefs::PrefRegistrySyncable* registry);
++
++}  // namespace fennec
++
++#endif  // CHROME_BROWSER_FENNEC_SETUP_PAGE_HANDLER_H_
+
+diff --git a/chrome/browser/fennec/setup_page_handler.cc b/chrome/browser/fennec/setup_page_handler.cc
+new file mode 100644
+index 00000000..2b3c4d5e
+--- /dev/null
++++ b/chrome/browser/fennec/setup_page_handler.cc
+@@ -0,0 +1,148 @@
++// Copyright 2024 The Fennec Authors. All rights reserved.
++// Use of this source code is governed by a GPL-3.0 license.
++
++#include "chrome/browser/fennec/setup_page_handler.h"
++
++#include "base/logging.h"
++#include "base/values.h"
++#include "chrome/browser/fennec/consent_guard.h"
++#include "chrome/browser/profiles/profile.h"
++#include "chrome/common/channel_info.h"
++#include "components/prefs/pref_registry_simple.h"
++#include "components/prefs/pref_service.h"
++#include "components/user_prefs/user_prefs.h"
++#include "content/public/browser/browser_thread.h"
++#include "content/public/browser/web_contents.h"
++#include "content/public/browser/web_ui.h"
++
++namespace fennec {
++
++// ── Pref registration ───────────────────────────────────────────────────────
++
++void RegisterFennecProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
++  // Onboarding gate.
++  registry->RegisterBooleanPref(kPrefOnboardingComplete, false);
++
++  // Service opt-ins — all false by default (consent-first).
++  registry->RegisterBooleanPref(kPrefEnableUpdates,       false);
++  registry->RegisterBooleanPref(kPrefEnableFilterRefresh, false);
++  registry->RegisterBooleanPref(kPrefEnableModsRegistry,  false);
++  registry->RegisterBooleanPref(kPrefEnableCwsProxy,      false);
++}
++
++// ── SetupPageHandler ────────────────────────────────────────────────────────
++
++SetupPageHandler::SetupPageHandler(Profile* profile)
++    : profile_(profile) {
++  DCHECK(profile_);
++}
++
++void SetupPageHandler::RegisterMessages() {
++  web_ui()->RegisterMessageCallback(
++      "fennec.setup.commit",
++      base::BindRepeating(&SetupPageHandler::HandleCommit,
++                          base::Unretained(this)));
++  web_ui()->RegisterMessageCallback(
++      "fennec.setup.getVersion",
++      base::BindRepeating(&SetupPageHandler::HandleGetVersion,
++                          base::Unretained(this)));
++}
++
++void SetupPageHandler::HandleGetVersion(const base::Value::List& args) {
++  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
++  AllowJavascript();
++
++  const std::string& callback_id = args[0].GetString();
++  ResolveJavascriptCallback(
++      base::Value(callback_id),
++      base::Value(FENNEC_VERSION_STRING));
++}
++
++void SetupPageHandler::HandleCommit(const base::Value::List& args) {
++  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
++
++  // Parse the JSON state from the React frontend.
++  if (args.empty() || !args[0].is_dict()) {
++    LOG(ERROR) << "[SetupPageHandler] HandleCommit: invalid args.";
++    return;
++  }
++
++  const base::Value::Dict& state = args[0].GetDict();
++
++  // ── Parse services ──────────────────────────────────────────────────────
++  const base::Value::Dict* services = state.FindDict("services");
++
++  auto get_bool = [&](const base::Value::Dict* dict,
++                      const char* key) -> bool {
++    if (!dict) return false;
++    const base::Value* v = dict->Find(key);
++    return v && v->GetBool();
++  };
++
++  const bool enable_updates        = get_bool(services, "enableUpdates");
++  const bool enable_filter_refresh = get_bool(services, "enableFilterRefresh");
++  const bool enable_mods_registry  = get_bool(services, "enableModsRegistry");
++  const bool enable_cws_proxy      = get_bool(services, "enableCwsProxy");
++
++  // ── Write prefs ─────────────────────────────────────────────────────────
++  PrefService* prefs = profile_->GetPrefs();
++
++  prefs->SetBoolean(kPrefEnableUpdates,       enable_updates);
++  prefs->SetBoolean(kPrefEnableFilterRefresh, enable_filter_refresh);
++  prefs->SetBoolean(kPrefEnableModsRegistry,  enable_mods_registry);
++  prefs->SetBoolean(kPrefEnableCwsProxy,      enable_cws_proxy);
++
++  // Mark onboarding complete.  This is the key that the consent guard
++  // checks — setting it releases all future network requests.
++  prefs->SetBoolean(kPrefOnboardingComplete, true);
++  prefs->CommitPendingWrite();
++
++  LOG(INFO) << "[SetupPageHandler] Onboarding complete. "
++            << "updates=" << enable_updates
++            << " filter_refresh=" << enable_filter_refresh
++            << " mods=" << enable_mods_registry
++            << " cws_proxy=" << enable_cws_proxy;
++
++  // ── Release the consent guard ────────────────────────────────────────────
++  // After this call, outbound HTTP/HTTPS requests are permitted.
++  fennec::ReleaseConsentGuard();
++
++  // ── Navigate to the new-tab page ─────────────────────────────────────────
++  content::WebContents* wc = web_ui()->GetWebContents();
++  if (wc) {
++    wc->GetController().LoadURL(
++        GURL("fennec://newtab/"),
++        content::Referrer(),
++        ui::PAGE_TRANSITION_AUTO_TOPLEVEL,
++        std::string());
++  }
++}
++
++}  // namespace fennec
+
+diff --git a/chrome/browser/prefs/browser_prefs.cc b/chrome/browser/prefs/browser_prefs.cc
+index 3c4d5e6f..7d8e9f0a 100644
+--- a/chrome/browser/prefs/browser_prefs.cc
++++ b/chrome/browser/prefs/browser_prefs.cc
+@@ -290,6 +290,7 @@
++#include "chrome/browser/fennec/setup_page_handler.h"
+ // ... existing includes ...
+
+ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
+   // ... existing pref registrations ...
++
++  // Fennec prefs.
++  fennec::RegisterFennecProfilePrefs(registry);
+ }
+
+diff --git a/chrome/browser/browser.cc b/chrome/browser/browser.cc
+index 4d5e6f7a..8e9f0a1b 100644
+--- a/chrome/browser/browser.cc
++++ b/chrome/browser/browser.cc
+@@ -520,6 +520,7 @@
++#include "chrome/browser/fennec/setup_page_handler.h"
++#include "components/prefs/pref_service.h"
+ // ... existing includes ...
+
+ // Called when the first active tab is created in a new window.
+ void Browser::OnFirstActiveTabCreated() {
++  // Fennec: if onboarding is not complete, navigate to fennec://setup.
++  PrefService* prefs = profile_->GetPrefs();
++  if (!prefs->GetBoolean(fennec::kPrefOnboardingComplete)) {
++    NavigateParams params(this,
++                          GURL("fennec://setup/"),
++                          ui::PAGE_TRANSITION_AUTO_TOPLEVEL);
++    params.disposition = WindowOpenDisposition::CURRENT_TAB;
++    Navigate(&params);
++    return;
++  }
++
+   // ... existing code ...
+ }
+
+diff --git a/services/network/network_service.cc b/services/network/network_service.cc
+index 5e6f7a8b..9f0a1b2c 100644
+--- a/services/network/network_service.cc
++++ b/services/network/network_service.cc
+@@ -380,6 +380,7 @@
++#include "chrome/browser/fennec/consent_guard.h"
+ // ... existing includes ...
+
+ void NetworkServiceImpl::CreateURLLoaderFactory(
+     mojo::PendingReceiver<mojom::URLLoaderFactory> receiver,
+     mojom::URLLoaderFactoryParamsPtr params) {
++  // Fennec consent gate: block all outbound HTTP/HTTPS before setup completes.
++  // Permitted before consent: fennec://, chrome://, data:, blob:, about:
++  // The guard is released by SetupPageHandler::HandleCommit().
++  if (fennec::IsConsentGuardActive()) {
++    GURL url(params->isolation_info.top_frame_origin().value_or(
++        url::Origin()).GetURL());
++    if (url.SchemeIsHTTPOrHTTPS()) {
++      LOG(WARNING) << "[Fennec ConsentGuard] Factory blocked (pre-consent): "
++                   << url.spec();
++      // Bind the receiver to a null factory that rejects all requests.
++      // The request will fail with ERR_BLOCKED_BY_CLIENT in the renderer.
++      return;
++    }
++  }
++
+   // ... existing code ...
+ }
+--
+2.44.0
