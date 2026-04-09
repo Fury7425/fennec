@@ -1,5 +1,7 @@
 // Types that mirror the C++ JournalEntry struct and ResourceClass enum.
 // Serialised to JSON by journal_mojo_handler.cc and consumed here.
+// The window.__fennec global bridge type is declared in
+// src/ui/shared/fennec-global.d.ts (shared across all WebUI pages).
 
 export type ResourceClass =
   | 'first-party'
@@ -29,24 +31,4 @@ export interface JournalEntry {
   block_reason: string;
   resource_class: ResourceClass;
   response_bytes: number;
-}
-
-// ── Mojo bridge (injected by journal_mojo_handler.cc) ────────────────────
-declare global {
-  interface Window {
-    __fennec?: {
-      journal?: {
-        /** Returns the most recent |n| entries as a JSON string. */
-        getEntries: (n: number) => string;
-        /** Exports last |days| days as a JSON file download. */
-        exportJson: (days: number) => void;
-        /** Clears the journal database. */
-        clear: () => void;
-        /** Subscribe to new-entry events; callback receives JSON string. */
-        subscribe: (callback: (entryJson: string) => void) => number;
-        /** Unsubscribe by id. */
-        unsubscribe: (id: number) => void;
-      };
-    };
-  }
 }

@@ -1,9 +1,11 @@
-import React from 'react';
-import type { SetupState } from '../types';
+interface AppearanceState {
+  theme:       'system' | 'light' | 'dark';
+  accentColor: string;
+}
 
 interface Props {
-  state: SetupState;
-  onChange: (patch: Partial<SetupState['appearance']>) => void;
+  state: { appearance?: AppearanceState };
+  onChange: (patch: Partial<AppearanceState>) => void;
   onNext: () => void;
 }
 
@@ -39,9 +41,9 @@ export default function AppearanceStep({ state, onChange, onNext }: Props) {
               onClick={() => onChange({ theme: t.value })}
               style={{
                 padding: '10px 20px', borderRadius: 8, border: '2px solid',
-                borderColor: state.appearance.theme === t.value ? 'var(--fnc-accent)' : 'var(--fnc-border)',
-                background: state.appearance.theme === t.value ? 'var(--fnc-accent)' : 'var(--fnc-surface-1)',
-                color: state.appearance.theme === t.value ? '#fff' : 'var(--fnc-text-primary)',
+                borderColor: state.appearance?.theme === t.value ? 'var(--fnc-accent)' : 'var(--fnc-border)',
+                background: state.appearance?.theme === t.value ? 'var(--fnc-accent)' : 'var(--fnc-surface-1)',
+                color: state.appearance?.theme === t.value ? '#fff' : 'var(--fnc-text-primary)',
                 cursor: 'pointer', fontWeight: 500, fontSize: '0.9rem',
               }}
             >
@@ -61,7 +63,7 @@ export default function AppearanceStep({ state, onChange, onNext }: Props) {
               onClick={() => onChange({ accentColor: c.value })}
               style={{
                 width: 36, height: 36, borderRadius: '50%', border: '3px solid',
-                borderColor: state.appearance.accentColor === c.value ? 'var(--fnc-text-primary)' : 'transparent',
+                borderColor: state.appearance?.accentColor === c.value ? 'var(--fnc-text-primary)' : 'transparent',
                 background: c.value, cursor: 'pointer', padding: 0,
               }}
             />

@@ -44,7 +44,7 @@ export async function run(
     const err = e as ExecaError;
     if (opts.allowFailure) return (err.stdout as string | undefined) ?? '';
 
-    log.fatal(
+    return log.fatal(
       `Command failed: ${cmd} ${args.join(' ')}`,
       [
         err.stderr ? `stderr: ${err.stderr}` : '',

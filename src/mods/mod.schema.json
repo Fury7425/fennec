@@ -39,7 +39,7 @@
     },
     "homepage": {
       "type": "string",
-      "format": "uri"
+      "pattern": "^https?://"
     },
     "permissions": {
       "type": "array",
