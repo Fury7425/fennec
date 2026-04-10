@@ -1,68 +1,193 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "FennecMod",
-  "description": "Manifest schema for Fennec browser Mods",
+  "title": "FennecModManifest",
+  "description": "Manifest schema for sandboxed Fennec Mods.",
   "type": "object",
-  "required": ["id", "name", "version", "fennecVersion", "entry"],
   "additionalProperties": false,
+  "required": [
+    "id",
+    "name",
+    "version",
+    "author",
+    "description",
+    "license",
+    "fennec_min_version",
+    "surfaces"
+  ],
   "properties": {
     "id": {
       "type": "string",
-      "pattern": "^[a-z0-9][a-z0-9-]*[a-z0-9]$",
-      "description": "Unique kebab-case identifier for this mod"
+      "pattern": "^[a-z0-9][a-z0-9-]*[a-z0-9]$"
     },
     "name": {
       "type": "string",
       "minLength": 1,
-      "maxLength": 64,
-      "description": "Human-readable display name"
+      "maxLength": 96
     },
     "version": {
       "type": "string",
-      "pattern": "^\\d+\\.\\d+\\.\\d+$",
-      "description": "Semver version string"
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
     },
-    "fennecVersion": {
+    "author": {
       "type": "string",
-      "description": "Minimum Fennec version required (semver range)"
-    },
-    "entry": {
-      "type": "string",
-      "description": "Path to main JS entry point, relative to mod root"
+      "minLength": 1,
+      "maxLength": 96
     },
     "description": {
       "type": "string",
-      "maxLength": 256
+      "minLength": 1,
+      "maxLength": 240
     },
-    "author": {
-      "type": "string"
-    },
-    "homepage": {
+    "license": {
       "type": "string",
-      "pattern": "^https?://"
+      "enum": [
+        "GPL-3.0",
+        "GPL-3.0-only",
+        "GPL-3.0-or-later",
+        "AGPL-3.0",
+        "AGPL-3.0-only",
+        "AGPL-3.0-or-later",
+        "LGPL-3.0",
+        "LGPL-3.0-only",
+        "LGPL-3.0-or-later"
+      ]
     },
-    "permissions": {
+    "fennec_min_version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "surfaces": {
       "type": "array",
+      "minItems": 1,
       "uniqueItems": true,
       "items": {
         "type": "string",
-        "enum": ["sidebar", "newtab", "settings", "theme"]
-      },
-      "description": "WebUI surfaces the mod may inject into"
+        "enum": [
+          "sidebar",
+          "newtab",
+          "settings",
+          "journal",
+          "layout"
+        ]
+      }
     },
-    "sandbox": {
+    "css": {
+      "type": "string"
+    },
+    "js": {
+      "type": "string"
+    },
+    "panel": {
       "type": "object",
       "additionalProperties": false,
+      "required": [
+        "title",
+        "icon",
+        "entry"
+      ],
       "properties": {
-        "noNetwork": {
-          "type": "boolean",
-          "default": true,
-          "description": "If true, mod JS cannot make network requests"
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
         },
-        "noPageAccess": {
-          "type": "boolean",
-          "default": true,
-          "description": "If true, mod JS cannot access page content or DOM"
+        "icon": {
+          "type": "string",
+          "minLength": 1
+        },
+        "entry": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "tokens": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^--fennec-[a-z0-9-]+$"
+      }
+    },
+    "layout": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "presetName",
+        "config"
+      ],
+      "properties": {
+        "presetName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 96
+        },
+        "config": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "sidebar",
+            "toolbar",
+            "addressBar",
+            "journalPanel",
+            "splitViewDefault"
+          ],
+          "properties": {
+            "sidebar": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "position",
+                "displayMode"
+              ],
+              "properties": {
+                "position": {
+                  "type": "string",
+                  "enum": [
+                    "left",
+                    "right",
+                    "hidden"
+                  ]
+                },
+                "displayMode": {
+                  "type": "string",
+                  "enum": [
+                    "collapsed",
+                    "expanded"
+                  ]
+                }
+              }
+            },
+            "toolbar": {
+              "type": "string",
+              "enum": [
+                "top",
+                "bottom",
+                "hidden"
+              ]
+            },
+            "addressBar": {
+              "type": "string",
+              "enum": [
+                "top-center",
+                "sidebar-top",
+                "hidden"
+              ]
+            },
+            "journalPanel": {
+              "type": "string",
+              "enum": [
+                "sidebar-bottom-drawer",
+                "floating-panel",
+                "hidden"
+              ]
+            },
+            "splitViewDefault": {
+              "type": "boolean"
+            }
+          }
         }
       }
     }

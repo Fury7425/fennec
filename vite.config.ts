@@ -25,6 +25,7 @@ export default defineConfig({
         settings: resolve(__dirname, 'src/ui/settings/index.html'),
         sidebar:  resolve(__dirname, 'src/ui/sidebar/index.html'),
         journal:  resolve(__dirname, 'src/ui/journal/index.html'),
+        mods:     resolve(__dirname, 'src/ui/mods/index.html'),
       },
     },
     // Output to chromium-src/chrome/browser/resources/fennec/ via the patch.

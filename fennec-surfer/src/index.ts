@@ -29,6 +29,7 @@ import { patchCommand }         from './commands/patch.js';
 import { buildCommand }         from './commands/build.js';
 import { packageCommand }       from './commands/package.js';
 import { releaseCommand }       from './commands/release.js';
+import { checkModSandboxCommand } from './commands/check_mod_sandbox.js';
 
 async function main() {
   let config;
@@ -78,6 +79,7 @@ async function main() {
   buildCommand(program, config);
   packageCommand(program, config);
   releaseCommand(program, config);
+  checkModSandboxCommand(program);
 
   // Graceful "unknown command" error
   program.on('command:*', (operands) => {

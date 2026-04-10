@@ -103,6 +103,7 @@
   "devutils": {
     "domainSubstitution": "devutils/domain_substitution.py",
     "binaryPruning":      "devutils/binary_pruning.py",
-    "validatePatches":    "devutils/validate_patches.py"
+    "validatePatches":    "devutils/validate_patches.py",
+    "checkModSandbox":    "devutils/check_mod_sandbox.mjs"
   }
 }

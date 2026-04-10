@@ -1,597 +1,258 @@
-import React, { useCallback, useEffect, useReducer, useRef, useState } from 'react';
-import type { SidebarEvent, SidebarTab, Workspace } from '../types';
+import React, { useEffect, useMemo, useState } from 'react';
+import { initializeSurfaceRuntime } from '../../shared/page-runtime';
+import { emitModTabChange, emitModWorkspaceChange, type RegisteredPanel } from '../../shared/mods';
+import { loadLayoutConfig } from '../../shared/layout';
+import { loadThemeTokens, subscribeToThemeTokens } from '../../shared/theme';
+import type { FennecLayoutConfig, FennecTab, FennecWorkspace } from '../../shared/models';
+import type { SidebarEvent } from '../types';
 
-// ── State ──────────────────────────────────────────────────────────────────
-
-interface SidebarState {
-  tabs:              SidebarTab[];
-  workspaces:        Workspace[];
-  activeWorkspaceId: number;
-}
-
-type Action =
-  | { type: 'INIT';             tabs: SidebarTab[]; workspaces: Workspace[] }
-  | { type: 'TAB_ADDED';        tab: SidebarTab }
-  | { type: 'TAB_REMOVED';      tabId: number }
-  | { type: 'TAB_UPDATED';      tab: SidebarTab }
-  | { type: 'TAB_ACTIVATED';    tabId: number }
-  | { type: 'WORKSPACE_CHANGED';workspaceId: number }
-  | { type: 'WORKSPACE_ADDED';  workspace: Workspace }
-  | { type: 'WORKSPACE_REMOVED';workspaceId: number };
-
-function reducer(state: SidebarState, action: Action): SidebarState {
-  switch (action.type) {
-    case 'INIT':
-      return {
-        ...state,
-        tabs:       action.tabs,
-        workspaces: action.workspaces,
-      };
-    case 'TAB_ADDED':
-      return { ...state, tabs: [...state.tabs, action.tab] };
-    case 'TAB_REMOVED':
-      return { ...state, tabs: state.tabs.filter(t => t.id !== action.tabId) };
-    case 'TAB_UPDATED':
-      return {
-        ...state,
-        tabs: state.tabs.map(t => t.id === action.tab.id ? action.tab : t),
-      };
-    case 'TAB_ACTIVATED':
-      return {
-        ...state,
-        tabs: state.tabs.map(t => ({ ...t, active: t.id === action.tabId })),
-      };
-    case 'WORKSPACE_CHANGED':
-      return { ...state, activeWorkspaceId: action.workspaceId };
-    case 'WORKSPACE_ADDED':
-      return { ...state, workspaces: [...state.workspaces, action.workspace] };
-    case 'WORKSPACE_REMOVED':
-      return {
-        ...state,
-        workspaces: state.workspaces.filter(w => w.id !== action.workspaceId),
-      };
-    default:
-      return state;
-  }
-}
-
-// ── Workspace color map ───────────────────────────────────────────────────
-
-const WORKSPACE_CSS_COLORS: Record<string, string> = {
-  orange: 'var(--fnc-workspace-orange)',
-  red:    'var(--fnc-workspace-red)',
-  amber:  'var(--fnc-workspace-amber)',
-  green:  'var(--fnc-workspace-green)',
-  teal:   'var(--fnc-workspace-teal)',
-  blue:   'var(--fnc-workspace-blue)',
-  violet: 'var(--fnc-workspace-violet)',
-  pink:   'var(--fnc-workspace-pink)',
-  slate:  'var(--fnc-workspace-slate)',
-  sand:   'var(--fnc-workspace-sand)',
-};
-
-function workspaceColor(name: string): string {
-  return WORKSPACE_CSS_COLORS[name] ?? 'var(--fnc-workspace-slate)';
-}
-
-// ── Favicon helper ────────────────────────────────────────────────────────
-
-function faviconSrc(tab: SidebarTab): string {
-  if (tab.favIconUrl) return tab.favIconUrl;
-  try {
-    return `chrome://favicon/size/16@2x/${encodeURIComponent(new URL(tab.url).origin + '/')}`;
-  } catch {
-    return '';
-  }
-}
-
-// ── Sub-components ─────────────────────────────────────────────────────────
-
-function WorkspaceChip({
-  workspace,
-  active,
-  onActivate,
-}: {
-  workspace: Workspace;
-  active: boolean;
-  onActivate: () => void;
-}): React.ReactElement {
-  const [hovered, setHovered] = useState(false);
-  const color = workspaceColor(workspace.color);
-
-  return (
-    <button
-      onClick={onActivate}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      title={workspace.name}
-      aria-pressed={active}
-      style={{
-        width:        '28px',
-        height:       '28px',
-        borderRadius: active ? 'var(--fnc-radius-md)' : 'var(--fnc-radius-full)',
-        border:       'none',
-        cursor:       'pointer',
-        background:   active ? color : (hovered ? 'var(--fnc-state-hover)' : 'transparent'),
-        display:      'flex',
-        alignItems:   'center',
-        justifyContent: 'center',
-        transition:   `background var(--fnc-duration-quick) var(--fnc-ease-out),
-                       border-radius var(--fnc-duration-quick) var(--fnc-ease-out)`,
-        flexShrink:   0,
-        position:     'relative',
-      }}
-    >
-      {/* Color dot */}
-      <span style={{
-        width:        active ? '10px' : '8px',
-        height:       active ? '10px' : '8px',
-        borderRadius: 'var(--fnc-radius-full)',
-        background:   active ? '#fff' : color,
-        display:      'block',
-        transition:   'all var(--fnc-duration-quick) var(--fnc-ease-out)',
-        opacity:      active ? 0.9 : 1,
-      }} />
-    </button>
-  );
-}
-
-function TabItem({
-  tab,
-  collapsed,
-  onActivate,
-  onClose,
-  onPin,
-}: {
-  tab: SidebarTab;
-  collapsed: boolean;
-  onActivate: () => void;
-  onClose: () => void;
-  onPin: () => void;
-}): React.ReactElement {
-  const [hovered, setHovered] = useState(false);
-  const favicon = faviconSrc(tab);
-
-  const rowStyle: React.CSSProperties = {
-    display:      'flex',
-    alignItems:   'center',
-    gap:          'var(--fnc-space-2)',
-    height:       'var(--fnc-sidebar-tab-height)',
-    padding:      collapsed
-      ? '0 var(--fnc-space-3)'
-      : `0 var(--fnc-space-2) 0 var(--fnc-space-3)`,
-    borderRadius: 'var(--fnc-radius-md)',
-    cursor:       'pointer',
-    background:   tab.active
-      ? 'var(--fnc-state-selected)'
-      : hovered
-        ? 'var(--fnc-state-hover)'
-        : 'transparent',
-    transition:   `background var(--fnc-duration-fast) var(--fnc-ease-out)`,
-    position:     'relative',
-    userSelect:   'none',
-  };
-
-  return (
-    <div
-      style={rowStyle}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      title={tab.title || tab.url}
-      role="button"
-      tabIndex={0}
-      aria-current={tab.active ? 'page' : undefined}
-      onClick={onActivate}
-      onKeyDown={e => { if (e.key === 'Enter') onActivate(); }}
-    >
-      {/* Active indicator strip */}
-      {tab.active && (
-        <span style={{
-          position:     'absolute',
-          left:         0,
-          top:          '6px',
-          bottom:       '6px',
-          width:        '3px',
-          borderRadius: '0 2px 2px 0',
-          background:   'var(--fnc-accent)',
-        }} />
-      )}
-
-      {/* Favicon / spinner */}
-      {tab.loading ? (
-        <span style={{
-          width:        'var(--fnc-sidebar-favicon-size)',
-          height:       'var(--fnc-sidebar-favicon-size)',
-          borderRadius: 'var(--fnc-radius-full)',
-          border:       '2px solid var(--fnc-border-subtle)',
-          borderTopColor: 'var(--fnc-accent)',
-          display:      'block',
-          flexShrink:   0,
-          animation:    'spin 0.8s linear infinite',
-        }} />
-      ) : (
-        <img
-          src={favicon}
-          alt=""
-          aria-hidden="true"
-          width="14"
-          height="14"
-          style={{
-            width:        'var(--fnc-sidebar-favicon-size)',
-            height:       'var(--fnc-sidebar-favicon-size)',
-            objectFit:    'contain',
-            borderRadius: '2px',
-            flexShrink:   0,
-          }}
-          onError={e => {
-            const img = e.currentTarget;
-            img.style.display = 'none';
-          }}
-        />
-      )}
-
-      {/* Title + audio badge (expanded only) */}
-      {!collapsed && (
-        <>
-          <span style={{
-            flex:         1,
-            overflow:     'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace:   'nowrap',
-            fontSize:     'var(--fnc-text-sm)',
-            color:        tab.active
-              ? 'var(--fnc-text-primary)'
-              : 'var(--fnc-text-secondary)',
-            fontWeight:   tab.active
-              ? 'var(--fnc-weight-medium)' as React.CSSProperties['fontWeight']
-              : undefined,
-          }}>
-            {tab.title || new URL(tab.url).hostname}
-          </span>
-
-          {/* Audio indicator */}
-          {tab.audible && !tab.muted && (
-            <span
-              title="Playing audio"
-              style={{ fontSize: '10px', color: 'var(--fnc-text-tertiary)', flexShrink: 0 }}
-            >
-              🔊
-            </span>
-          )}
-          {tab.muted && (
-            <span
-              title="Muted"
-              style={{ fontSize: '10px', color: 'var(--fnc-text-tertiary)', flexShrink: 0 }}
-            >
-              🔇
-            </span>
-          )}
-
-          {/* Close button (visible on hover) */}
-          {hovered && (
-            <button
-              onClick={e => { e.stopPropagation(); onClose(); }}
-              title="Close tab"
-              aria-label="Close tab"
-              style={{
-                border:       'none',
-                background:   'transparent',
-                cursor:       'pointer',
-                color:        'var(--fnc-text-tertiary)',
-                fontSize:     '14px',
-                padding:      '2px',
-                borderRadius: 'var(--fnc-radius-sm)',
-                display:      'flex',
-                alignItems:   'center',
-                flexShrink:   0,
-                lineHeight:   1,
-              }}
-            >
-              ×
-            </button>
-          )}
-
-          {/* Pin button (visible on hover, when not pinned) */}
-          {hovered && !tab.pinned && (
-            <button
-              onClick={e => { e.stopPropagation(); onPin(); }}
-              title="Pin tab"
-              aria-label="Pin tab"
-              style={{
-                border:       'none',
-                background:   'transparent',
-                cursor:       'pointer',
-                color:        'var(--fnc-text-tertiary)',
-                fontSize:     '11px',
-                padding:      '2px',
-                borderRadius: 'var(--fnc-radius-sm)',
-                display:      'flex',
-                alignItems:   'center',
-                flexShrink:   0,
-              }}
-            >
-              📌
-            </button>
-          )}
-        </>
-      )}
-    </div>
-  );
-}
-
-// ── Mock data for development ──────────────────────────────────────────────
-
-const MOCK_WORKSPACES: Workspace[] = [
-  { id: 1, name: 'Personal', color: 'orange' },
-  { id: 2, name: 'Work',     color: 'blue' },
-  { id: 3, name: 'Research', color: 'green' },
+const MOCK_WORKSPACES: FennecWorkspace[] = [
+  { id: 1, name: 'Personal', colorToken: '--fennec-color-workspace-1' },
+  { id: 2, name: 'Work', colorToken: '--fennec-color-workspace-5' },
+  { id: 3, name: 'Research', colorToken: '--fennec-color-workspace-4' },
 ];
 
-const MOCK_TABS: SidebarTab[] = [
-  {
-    id: 1, title: 'New Tab', url: 'fennec://newtab', favIconUrl: '',
-    active: false, pinned: true, workspaceId: 1, loading: false, audible: false, muted: false,
-  },
-  {
-    id: 2, title: 'Request Journal — Fennec', url: 'fennec://journal', favIconUrl: '',
-    active: true, pinned: false, workspaceId: 1, loading: false, audible: false, muted: false,
-  },
-  {
-    id: 3, title: 'GitHub · Where the world builds software', url: 'https://github.com', favIconUrl: '',
-    active: false, pinned: false, workspaceId: 1, loading: false, audible: false, muted: false,
-  },
-  {
-    id: 4, title: 'Hacker News', url: 'https://news.ycombinator.com', favIconUrl: '',
-    active: false, pinned: false, workspaceId: 1, loading: true, audible: false, muted: false,
-  },
-  {
-    id: 5, title: 'Linear – The issue tracker for modern teams', url: 'https://linear.app', favIconUrl: '',
-    active: false, pinned: false, workspaceId: 2, loading: false, audible: false, muted: false,
-  },
-  {
-    id: 6, title: 'Notion', url: 'https://notion.so', favIconUrl: '',
-    active: false, pinned: false, workspaceId: 2, loading: false, audible: true, muted: false,
-  },
+const MOCK_TABS: FennecTab[] = [
+  { id: 1, title: 'Welcome', url: 'fennec://newtab', active: false, pinned: true, loading: false, audible: false, muted: false, workspaceId: 1 },
+  { id: 2, title: 'Request Journal', url: 'fennec://journal', active: true, pinned: false, loading: false, audible: false, muted: false, workspaceId: 1 },
+  { id: 3, title: 'GitHub', url: 'https://github.com', active: false, pinned: false, loading: false, audible: false, muted: false, workspaceId: 1 },
+  { id: 4, title: 'Spec notes', url: 'https://example.com/spec', active: false, pinned: false, loading: true, audible: false, muted: false, workspaceId: 3 },
+  { id: 5, title: 'Linear', url: 'https://linear.app', active: false, pinned: false, loading: false, audible: false, muted: false, workspaceId: 2 },
 ];
 
-// ── Main component ─────────────────────────────────────────────────────────
+function panelDocument(html: string, tokens: Record<string, string>): string {
+  const tokenStyles = Object.entries(tokens)
+    .map(([key, value]) => `${key}: ${value.replaceAll('"', '&quot;')};`)
+    .join(' ');
+  return `<!DOCTYPE html><html style="${tokenStyles}"><body style="margin:0;background:transparent;color:var(--fennec-color-text-primary);font-family:var(--fennec-font-ui);">${html}</body></html>`;
+}
+
+function workspaceColor(colorToken: string): string {
+  return `var(${colorToken})`;
+}
+
+function navLink(label: string, href: string): React.ReactElement {
+  return (
+    <a className="fennec-button" data-variant="ghost" href={href} style={{ textDecoration: 'none', textAlign: 'center' }}>
+      {label}
+    </a>
+  );
+}
 
 export function SidebarApp(): React.ReactElement {
-  const [state, dispatch] = useReducer(reducer, {
-    tabs:              [],
-    workspaces:        [],
-    activeWorkspaceId: 1,
-  });
-  const subIdRef = useRef<number | null>(null);
+  const [tabs, setTabs] = useState<FennecTab[]>([]);
+  const [workspaces, setWorkspaces] = useState<FennecWorkspace[]>([]);
+  const [activeWorkspaceId, setActiveWorkspaceId] = useState(1);
+  const [layout, setLayout] = useState<FennecLayoutConfig>(loadLayoutConfig());
+  const [panels, setPanels] = useState<RegisteredPanel[]>([]);
+  const [themeTokens, setThemeTokens] = useState(loadThemeTokens());
 
-  // Detect collapsed mode by watching element width.
-  const [collapsed, setCollapsed] = useState(false);
   useEffect(() => {
-    const obs = new ResizeObserver(entries => {
-      const width = entries[0]?.contentRect.width ?? 240;
-      setCollapsed(width < 80);
+    const disposeRuntime = initializeSurfaceRuntime('sidebar', {
+      onPanelsChange: nextPanels => setPanels(nextPanels),
+      onLayoutChange: nextLayout => setLayout(nextLayout),
     });
-    obs.observe(document.documentElement);
-    return () => obs.disconnect();
-  }, []);
+    const disposeTheme = subscribeToThemeTokens(setThemeTokens);
 
-  // Load initial data and subscribe to events.
-  useEffect(() => {
     const bridge = window.__fennec?.sidebar;
     if (bridge) {
       try {
-        const tabs       = JSON.parse(bridge.getTabs())       as SidebarTab[];
-        const workspaces = JSON.parse(bridge.getWorkspaces()) as Workspace[];
-        dispatch({ type: 'INIT', tabs, workspaces });
-      } catch { /* ignore parse errors */ }
+        const loadedTabs = JSON.parse(bridge.getTabs()) as FennecTab[];
+        const loadedWorkspaces = JSON.parse(bridge.getWorkspaces()) as FennecWorkspace[];
+        setTabs(loadedTabs);
+        setWorkspaces(loadedWorkspaces);
+        const activeTab = loadedTabs.find(tab => tab.active);
+        if (activeTab) {
+          setActiveWorkspaceId(activeTab.workspaceId);
+          emitModTabChange(activeTab);
+        }
+        const activeWorkspace = loadedWorkspaces.find(workspace => workspace.id === (activeTab?.workspaceId ?? loadedWorkspaces[0]?.id));
+        if (activeWorkspace) {
+          emitModWorkspaceChange(activeWorkspace);
+        }
+      } catch {
+        setTabs(MOCK_TABS);
+        setWorkspaces(MOCK_WORKSPACES);
+      }
 
-      subIdRef.current = bridge.subscribe((eventJson: string) => {
+      const subscriptionId = bridge.subscribe((eventJson: string) => {
         try {
-          const ev = JSON.parse(eventJson) as SidebarEvent;
-          switch (ev.type) {
-            case 'TAB_ADDED':
-              dispatch({ type: 'TAB_ADDED', tab: ev.tab }); break;
-            case 'TAB_REMOVED':
-              dispatch({ type: 'TAB_REMOVED', tabId: ev.tabId }); break;
-            case 'TAB_UPDATED':
-              dispatch({ type: 'TAB_UPDATED', tab: ev.tab }); break;
-            case 'TAB_ACTIVATED':
-              dispatch({ type: 'TAB_ACTIVATED', tabId: ev.tabId }); break;
-            case 'WORKSPACE_CHANGED':
-              dispatch({ type: 'WORKSPACE_CHANGED', workspaceId: ev.workspaceId }); break;
-            case 'WORKSPACE_ADDED':
-              dispatch({ type: 'WORKSPACE_ADDED', workspace: ev.workspace }); break;
-            case 'WORKSPACE_REMOVED':
-              dispatch({ type: 'WORKSPACE_REMOVED', workspaceId: ev.workspaceId }); break;
+          const event = JSON.parse(eventJson) as SidebarEvent;
+          setTabs(previousTabs => {
+            switch (event.type) {
+              case 'TAB_ADDED':
+                return [...previousTabs, event.tab];
+              case 'TAB_REMOVED':
+                return previousTabs.filter(tab => tab.id !== event.tabId);
+              case 'TAB_UPDATED':
+                return previousTabs.map(tab => tab.id === event.tab.id ? event.tab : tab);
+              case 'TAB_ACTIVATED':
+                return previousTabs.map(tab => ({ ...tab, active: tab.id === event.tabId }));
+              default:
+                return previousTabs;
+            }
+          });
+          if (event.type === 'WORKSPACE_CHANGED') {
+            setActiveWorkspaceId(event.workspaceId);
           }
-        } catch { /* ignore */ }
+          if (event.type === 'WORKSPACE_ADDED') {
+            setWorkspaces(previous => [...previous, event.workspace]);
+          }
+          if (event.type === 'WORKSPACE_REMOVED') {
+            setWorkspaces(previous => previous.filter(workspace => workspace.id !== event.workspaceId));
+          }
+        } catch {
+          // Ignore malformed sidebar updates in preview mode.
+        }
       });
-    } else {
-      // Development mock
-      dispatch({ type: 'INIT', tabs: MOCK_TABS, workspaces: MOCK_WORKSPACES });
+
+      return () => {
+        bridge.unsubscribe(subscriptionId);
+        disposeTheme();
+        disposeRuntime();
+      };
     }
 
+    setTabs(MOCK_TABS);
+    setWorkspaces(MOCK_WORKSPACES);
     return () => {
-      if (subIdRef.current !== null) {
-        window.__fennec?.sidebar?.unsubscribe(subIdRef.current);
-      }
+      disposeTheme();
+      disposeRuntime();
     };
   }, []);
 
-  const handleActivate = useCallback((tabId: number) => {
-    window.__fennec?.sidebar?.activateTab(tabId);
-    dispatch({ type: 'TAB_ACTIVATED', tabId });
-  }, []);
-
-  const handleClose = useCallback((tabId: number) => {
-    window.__fennec?.sidebar?.closeTab(tabId);
-    dispatch({ type: 'TAB_REMOVED', tabId });
-  }, []);
-
-  const handlePin = useCallback((tab: SidebarTab) => {
-    window.__fennec?.sidebar?.setPinned(tab.id, !tab.pinned);
-    dispatch({ type: 'TAB_UPDATED', tab: { ...tab, pinned: !tab.pinned } });
-  }, []);
-
-  const handleNewTab = useCallback(() => {
-    window.__fennec?.sidebar?.newTab(state.activeWorkspaceId);
-  }, [state.activeWorkspaceId]);
-
-  const handleWorkspaceSwitch = useCallback((workspaceId: number) => {
-    window.__fennec?.sidebar?.moveTab(0, workspaceId); // 0 = noop; bridge handles workspace switch
-    dispatch({ type: 'WORKSPACE_CHANGED', workspaceId });
-  }, []);
-
-  // Partition tabs for the active workspace.
-  const workspaceTabs = state.tabs.filter(
-    t => t.workspaceId === state.activeWorkspaceId,
+  const visibleTabs = useMemo(
+    () => tabs.filter(tab => tab.workspaceId === activeWorkspaceId),
+    [activeWorkspaceId, tabs],
   );
-  const pinnedTabs = workspaceTabs.filter(t => t.pinned);
-  const regularTabs = workspaceTabs.filter(t => !t.pinned);
+  const pinnedTabs = visibleTabs.filter(tab => tab.pinned);
+  const regularTabs = visibleTabs.filter(tab => !tab.pinned);
+  const collapsed = layout.sidebar.displayMode === 'collapsed';
+  const isHidden = layout.sidebar.position === 'hidden';
 
-  const sidebarStyle: React.CSSProperties = {
-    display:       'flex',
-    flexDirection: 'column',
-    height:        '100vh',
-    width:         '100%',
-    background:    'var(--fnc-surface-sidebar)',
-    color:         'var(--fnc-text-primary)',
-    fontFamily:    'var(--fnc-font-sans)',
-    fontSize:      'var(--fnc-text-base)',
-    overflow:      'hidden',
-    borderRight:   '1px solid var(--fnc-border-subtle)',
-  };
+  function activateTab(tab: FennecTab): void {
+    window.__fennec?.sidebar?.activateTab(tab.id);
+    setTabs(previous => previous.map(current => ({ ...current, active: current.id === tab.id })));
+    emitModTabChange(tab);
+  }
 
-  const headerStyle: React.CSSProperties = {
-    height:      'var(--fnc-sidebar-header-height)',
-    display:     'flex',
-    alignItems:  'center',
-    padding:     `0 var(--fnc-space-2)`,
-    gap:         'var(--fnc-space-1)',
-    borderBottom: '1px solid var(--fnc-border-subtle)',
-    flexShrink:  0,
-    flexWrap:    'wrap',
-  };
+  function activateWorkspace(workspace: FennecWorkspace): void {
+    setActiveWorkspaceId(workspace.id);
+    emitModWorkspaceChange(workspace);
+  }
 
-  const tabListStyle: React.CSSProperties = {
-    flex:       1,
-    overflowY:  'auto',
-    overflowX:  'hidden',
-    padding:    `var(--fnc-space-1) var(--fnc-space-1)`,
-  };
+  function closeTab(tabId: number): void {
+    window.__fennec?.sidebar?.closeTab(tabId);
+    setTabs(previous => previous.filter(tab => tab.id !== tabId));
+  }
 
-  const sectionLabelStyle: React.CSSProperties = {
-    fontSize:      'var(--fnc-text-2xs)',
-    fontWeight:    'var(--fnc-weight-semibold)' as React.CSSProperties['fontWeight'],
-    color:         'var(--fnc-text-tertiary)',
-    textTransform: 'uppercase',
-    letterSpacing: 'var(--fnc-tracking-widest)',
-    padding:       `var(--fnc-space-2) var(--fnc-space-3) var(--fnc-space-1)`,
-  };
-
-  const newTabBtnStyle: React.CSSProperties = {
-    display:        'flex',
-    alignItems:     'center',
-    justifyContent: collapsed ? 'center' : undefined,
-    gap:            'var(--fnc-space-2)',
-    margin:         `var(--fnc-space-1) var(--fnc-space-1)`,
-    padding:        collapsed
-      ? 'var(--fnc-space-2) var(--fnc-space-3)'
-      : `var(--fnc-space-2) var(--fnc-space-3)`,
-    border:         'none',
-    borderRadius:   'var(--fnc-radius-md)',
-    background:     'transparent',
-    color:          'var(--fnc-text-tertiary)',
-    fontSize:       'var(--fnc-text-sm)',
-    fontFamily:     'var(--fnc-font-sans)',
-    cursor:         'pointer',
-    width:          `calc(100% - var(--fnc-space-2))`,
-  };
+  function panelMarkup(panel: RegisteredPanel): string {
+    return panelDocument(panel.html, themeTokens);
+  }
 
   return (
-    <div style={sidebarStyle}>
-      {/* Workspace chips header */}
-      <div style={headerStyle} aria-label="Workspaces">
-        {state.workspaces.map(ws => (
-          <WorkspaceChip
-            key={ws.id}
-            workspace={ws}
-            active={ws.id === state.activeWorkspaceId}
-            onActivate={() => handleWorkspaceSwitch(ws.id)}
-          />
-        ))}
-      </div>
+    <div
+      className="fennec-page"
+      style={{
+        padding: 'var(--fennec-space-3)',
+        background: 'var(--fennec-color-bg-sidebar)',
+      }}
+    >
+      <div
+        className="fennec-stack"
+        style={{
+          minHeight: 'calc(100vh - var(--fennec-space-6))',
+          width: collapsed ? 'var(--fennec-sidebar-width-collapsed)' : 'var(--fennec-sidebar-width-expanded)',
+          transition: 'var(--fennec-shell-transition)',
+        }}
+      >
+        {isHidden && (
+          <div className="fennec-card-muted">
+            <p style={{ margin: 0 }} className="fennec-subtle">Sidebar is hidden by the active layout preset.</p>
+          </div>
+        )}
 
-      {/* Tab list */}
-      <div style={tabListStyle} role="list" aria-label="Open tabs">
-        {/* Pinned tabs */}
-        {pinnedTabs.length > 0 && (
-          <>
-            {!collapsed && <div style={sectionLabelStyle}>Pinned</div>}
-            {pinnedTabs.map(tab => (
-              <div key={tab.id} role="listitem">
-                <TabItem
-                  tab={tab}
-                  collapsed={collapsed}
-                  onActivate={() => handleActivate(tab.id)}
-                  onClose={() => handleClose(tab.id)}
-                  onPin={() => handlePin(tab)}
-                />
-              </div>
+        <div className="fennec-card-strong">
+          <div className="fennec-inline" style={{ justifyContent: collapsed ? 'center' : 'space-between' }}>
+            {workspaces.map(workspace => (
+              <button
+                key={workspace.id}
+                className="fennec-chip"
+                data-active={workspace.id === activeWorkspaceId}
+                type="button"
+                onClick={() => activateWorkspace(workspace)}
+                title={workspace.name}
+                style={{
+                  background: workspace.id === activeWorkspaceId ? workspaceColor(workspace.colorToken) : undefined,
+                  borderColor: workspaceColor(workspace.colorToken),
+                  color: workspace.id === activeWorkspaceId ? 'var(--fennec-color-bg-secondary)' : undefined,
+                  width: collapsed ? 'var(--fennec-tab-height)' : undefined,
+                  paddingInline: collapsed ? '0' : undefined,
+                }}
+              >
+                {collapsed ? workspace.name[0] : workspace.name}
+              </button>
             ))}
-          </>
-        )}
-
-        {/* Regular tabs */}
-        {pinnedTabs.length > 0 && regularTabs.length > 0 && !collapsed && (
-          <div style={sectionLabelStyle}>Tabs</div>
-        )}
-        {regularTabs.map(tab => (
-          <div key={tab.id} role="listitem">
-            <TabItem
-              tab={tab}
-              collapsed={collapsed}
-              onActivate={() => handleActivate(tab.id)}
-              onClose={() => handleClose(tab.id)}
-              onPin={() => handlePin(tab)}
-            />
           </div>
-        ))}
+        </div>
 
-        {/* Empty state */}
-        {workspaceTabs.length === 0 && (
-          <div style={{
-            padding:   'var(--fnc-space-6) var(--fnc-space-4)',
-            textAlign: 'center',
-            color:     'var(--fnc-text-tertiary)',
-            fontSize:  'var(--fnc-text-sm)',
-          }}>
-            {collapsed ? '' : 'No tabs'}
-          </div>
-        )}
-      </div>
-
-      {/* New tab button */}
-      <div style={{ borderTop: '1px solid var(--fnc-border-subtle)', flexShrink: 0 }}>
-        <button
-          style={newTabBtnStyle}
-          onClick={handleNewTab}
-          title="New tab"
-          aria-label="New tab"
-        >
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-            <path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-          </svg>
-          {!collapsed && <span>New tab</span>}
+        <button className="fennec-button" data-variant="accent" type="button" onClick={() => window.__fennec?.sidebar?.newTab(activeWorkspaceId)}>
+          {collapsed ? '+' : 'New tab'}
         </button>
-      </div>
 
-      {/* Spinner keyframe — injected once */}
-      <style>{`
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
+        <div className="fennec-stack fennec-scroll" style={{ flex: 1 }}>
+          {pinnedTabs.length > 0 && !collapsed && <span className="fennec-subtle">Pinned</span>}
+          {pinnedTabs.map(tab => (
+            <div key={tab.id} className="fennec-list-row" data-active={tab.active} onClick={() => activateTab(tab)}>
+              <span>{collapsed ? tab.title[0] : tab.title}</span>
+              {!collapsed && (
+                <button className="fennec-button" data-variant="ghost" type="button" onClick={event => {
+                  event.stopPropagation();
+                  closeTab(tab.id);
+                }}>
+                  Close
+                </button>
+              )}
+            </div>
+          ))}
+
+          {regularTabs.length > 0 && !collapsed && <span className="fennec-subtle">Tabs</span>}
+          {regularTabs.map(tab => (
+            <div key={tab.id} className="fennec-list-row" data-active={tab.active} onClick={() => activateTab(tab)}>
+              <span>{collapsed ? tab.title[0] : tab.title}</span>
+              {!collapsed && (
+                <span className="fennec-subtle">
+                  {tab.loading ? 'Loading' : tab.audible ? 'Audio' : new URL(tab.url).hostname}
+                </span>
+              )}
+            </div>
+          ))}
+
+          {panels.map(panel => (
+            <div key={panel.modId} className="fennec-card">
+              {!collapsed && (
+                <div className="fennec-heading" style={{ marginBottom: 'var(--fennec-space-2)' }}>
+                  <span>{panel.title}</span>
+                </div>
+              )}
+              <iframe
+                className="fennec-mod-panel-frame"
+                sandbox="allow-scripts"
+                srcDoc={panelMarkup(panel)}
+                title={panel.title}
+              />
+            </div>
+          ))}
+        </div>
+
+        <div className="fennec-card">
+          <div className="fennec-inline" style={{ justifyContent: 'space-between' }}>
+            {navLink('Journal', 'fennec://journal')}
+            {navLink('Settings', 'fennec://settings')}
+            {navLink('Mods', 'fennec://mods')}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

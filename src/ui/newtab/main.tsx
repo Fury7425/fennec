@@ -1,5 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+import '../tokens/tokens.css';
+import '../shared/shell.css';
 import { NewTabApp } from './components/NewTabApp';
 
 const container = document.getElementById('root');
